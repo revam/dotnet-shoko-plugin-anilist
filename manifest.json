@@ -1,9 +1,28 @@
 {
   "id": "e73c1e23-111a-4cf0-bab8-054b738c5101",
   "name": "AniList Metadata",
-  "overview": "Supplies AniList anime metadata, images, cast and crew, tags, studios, relations, recommendations and broadcast times for the `anilist` metadata source, through Shoko's metadata provider contract.",
+  "overview": "Supplies AniList anime metadata, images, cast and crew, tags, studios, relations, recommendations and broadcast times for the \u0060anilist\u0060 metadata source, through Shoko\u0027s metadata provider contract.",
   "authors": "revam",
   "repository_url": "https://github.com/revam/dotnet-shoko-plugin-anilist",
-  "tags": [],
-  "releases": []
+  "tags": [
+    "service-registration"
+  ],
+  "releases": [
+    {
+      "version": "1.0.0",
+      "tag": "v1.0.0",
+      "released_at": "2026-09-30T16:24:07.3584864Z",
+      "channel": "Stable",
+      "release_notes": "First release. Supplies AniList anime metadata to Shoko through its metadata provider contract, for the \u0060anilist\u0060 metadata source: titles and overviews, images, cast and crew, tags, studios, relations, recommendations and broadcast times.\n\nSeries are matched by searching AniList for the anime\u0027s titles and scoring the results by title and air date, following the first prequel where that helps. Shoko\u0027s auto-linker then decides what to link. Auto-linking is off until an admin turns it on for the \u0060anilist\u0060 source.\n\nRequires Shoko Server with abstractions \u00606.0.0-alpha.95\u0060.",
+      "dependencies": [],
+      "archives": [
+        {
+          "runtime": "any",
+          "abstraction": "6.0.0",
+          "url": "https://github.com/revam/dotnet-shoko-plugin-anilist/releases/download/v1.0.0/AniListMetadata-v1.0.0-any.zip",
+          "checksum": "sha256:46e53137c1c3c6b3089d06dada1b7d40335de7172d565a80c6fd28ebf7b40433"
+        }
+      ]
+    }
+  ]
 }
