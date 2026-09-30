@@ -1,0 +1,97 @@
+{
+  "data": {
+    "Media": {
+      "id": 21,
+      "idMal": 21,
+      "type": "ANIME",
+      "format": "TV",
+      "title": { "english": "ONE PIECE", "native": "ONE PIECE", "romaji": "ONE PIECE" },
+      "synonyms": ["OP", "ワンピース"],
+      "description": "Gold Roger was known as the Pirate King.<br><br>Now Monkey D. Luffy &amp; his crew sail.",
+      "coverImage": { "color": "#e4a15d", "extraLarge": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21-YCDoj1EkAxFn.jpg" },
+      "bannerImage": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/21-wf37VakJmZqs.jpg",
+      "startDate": { "year": 1999, "month": 10, "day": 20 },
+      "endDate": { "year": null, "month": null, "day": null },
+      "status": "RELEASING",
+      "source": "MANGA",
+      "isAdult": false,
+      "isLicensed": true,
+      "season": "FALL",
+      "seasonYear": 1999,
+      "countryOfOrigin": "JP",
+      "averageScore": 88,
+      "meanScore": 89,
+      "favourites": 90000,
+      "popularity": 600000,
+      "episodes": null,
+      "duration": 24,
+      "genres": ["Action", "Adventure"],
+      "updatedAt": 1758000000,
+      "trailer": { "id": "abc123", "site": "youtube" },
+      "externalLinks": [
+        { "id": 1, "url": "https://www.crunchyroll.com/one-piece", "site": "Crunchyroll", "siteId": 5, "type": "STREAMING", "language": "English" },
+        { "id": 2, "url": "https://www.toei-anim.co.jp/tv/onep/", "site": "Official Site", "siteId": 1, "type": "INFO", "language": null }
+      ],
+      "stats": { "scoreDistribution": [ { "score": 90, "amount": 100 }, { "score": 100, "amount": 50 } ] },
+      "airingSchedule": {
+        "nodes": [
+          { "id": 1001, "episode": 1, "airingAt": 940377600 },
+          { "id": 1002, "episode": 2, "airingAt": 940982400 },
+          { "id": 1003, "episode": 3, "airingAt": 941587200 }
+        ],
+        "pageInfo": { "currentPage": 1, "hasNextPage": false }
+      },
+      "studios": {
+        "edges": [
+          { "isMain": false, "node": { "id": 16, "name": "Fuji TV", "isAnimationStudio": false, "favourites": 10, "siteUrl": "" } },
+          { "isMain": true, "node": { "id": 18, "name": "Toei Animation", "isAnimationStudio": true, "favourites": 5000, "siteUrl": "" } }
+        ]
+      },
+      "tags": [
+        { "id": 94, "name": "Pirates", "category": "Theme-Other", "description": "Prominently features sea-faring adventurers.", "isAdult": false, "isGeneralSpoiler": false, "isMediaSpoiler": false, "rank": 96 },
+        { "id": 150, "name": "Time Skip", "category": "Setting-Time", "description": "Skips ahead.", "isAdult": false, "isGeneralSpoiler": true, "isMediaSpoiler": true, "rank": 70 }
+      ],
+      "relations": {
+        "edges": [
+          { "relationType": "SOURCE", "node": { "id": 30013, "type": "MANGA", "format": "MANGA", "countryOfOrigin": "JP", "title": { "romaji": "ONE PIECE" } } },
+          { "relationType": "SIDE_STORY", "node": { "id": 459, "type": "ANIME", "format": "MOVIE", "title": { "romaji": "ONE PIECE: Movie 1" } } },
+          { "relationType": "PREQUEL", "node": { "id": 466, "type": "ANIME", "format": "OVA", "title": { "romaji": "ONE PIECE: Defeat the Pirate Ganzack!" } } }
+        ]
+      },
+      "recommendations": {
+        "pageInfo": { "currentPage": 1, "hasNextPage": false },
+        "nodes": [
+          { "rating": 500, "mediaRecommendation": { "id": 1735, "type": "ANIME" } },
+          { "rating": 200, "mediaRecommendation": { "id": 30013, "type": "MANGA" } },
+          { "rating": 100, "mediaRecommendation": null },
+          { "rating": -3, "mediaRecommendation": { "id": 6702, "type": "ANIME" } }
+        ]
+      },
+      "characters": {
+        "pageInfo": { "currentPage": 1, "hasNextPage": false },
+        "edges": [
+          {
+            "role": "MAIN",
+            "voiceActorRoles": [
+              { "roleNotes": null, "dubGroup": null, "voiceActor": { "id": 95011, "name": { "full": "Mayumi Tanaka", "native": "田中真弓", "alternative": [] }, "image": { "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95011.jpg" }, "description": "Voice actress.", "languageV2": "Japanese", "primaryOccupations": ["Voice Actor"], "gender": "Female", "dateOfBirth": { "year": 1955, "month": 1, "day": 15 }, "homeTown": "Tokyo", "favourites": 100, "siteUrl": "" } },
+              { "roleNotes": "(young)", "dubGroup": "Funimation", "voiceActor": { "id": 95012, "name": { "full": "Colleen Clinkenbeard", "native": null, "alternative": [] }, "image": { "large": null }, "description": null, "languageV2": "English", "primaryOccupations": [], "gender": "Female", "dateOfBirth": { "year": null, "month": 6, "day": 13 }, "homeTown": null, "favourites": 5, "siteUrl": "" } }
+            ],
+            "node": { "id": 40, "name": { "full": "Luffy Monkey", "native": "モンキー・D・ルフィ", "alternative": ["Straw Hat"] }, "image": { "large": "https://s4.anilist.co/file/anilistcdn/character/large/b40-Bn6Bmf3LLIf3.png" }, "description": "Captain of the <b>Straw Hat</b> Pirates.", "gender": "Male", "dateOfBirth": { "year": null, "month": 5, "day": 5 }, "age": "19", "favourites": 60000, "siteUrl": "" }
+          },
+          {
+            "role": "BACKGROUND",
+            "voiceActorRoles": [],
+            "node": { "id": 41, "name": { "full": "Nobody", "native": null, "alternative": [] }, "image": { "large": null }, "description": null, "gender": null, "dateOfBirth": { "year": null, "month": null, "day": null }, "age": null, "favourites": 0, "siteUrl": "" }
+          }
+        ]
+      },
+      "staff": {
+        "pageInfo": { "currentPage": 1, "hasNextPage": false },
+        "edges": [
+          { "role": "Original Creator", "node": { "id": 96880, "name": { "full": "Eiichiro Oda", "native": "尾田栄一郎", "alternative": [] }, "image": { "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n96880.jpg" }, "description": null, "languageV2": "Japanese", "primaryOccupations": ["Mangaka"], "gender": "Male", "dateOfBirth": { "year": 1975, "month": 1, "day": 1 }, "homeTown": "Kumamoto", "favourites": 1, "siteUrl": "" } },
+          { "role": "ADR Director (English)", "node": { "id": 95012, "name": { "full": "Colleen Clinkenbeard", "native": null, "alternative": [] }, "image": { "large": null }, "description": null, "languageV2": "English", "primaryOccupations": [], "gender": "Female", "dateOfBirth": { "year": null, "month": null, "day": null }, "homeTown": null, "favourites": 5, "siteUrl": "" } }
+        ]
+      }
+    }
+  }
+}

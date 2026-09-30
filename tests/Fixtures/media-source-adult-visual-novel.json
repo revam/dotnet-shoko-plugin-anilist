@@ -1,0 +1,20 @@
+{
+  "data": {
+    "Media": {
+      "id": 90021,
+      "type": "ANIME",
+      "format": "TV",
+      "title": {
+        "english": null,
+        "native": null,
+        "romaji": "After School Lessons"
+      },
+      "source": "VISUAL_NOVEL",
+      "isAdult": true,
+      "countryOfOrigin": "JP",
+      "relations": {
+        "edges": []
+      }
+    }
+  }
+}

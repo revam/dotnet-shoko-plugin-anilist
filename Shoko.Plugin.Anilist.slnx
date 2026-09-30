@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/source/">
+    <Project Path="source/Shoko.Plugin.Anilist.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Shoko.Plugin.Anilist.Tests.csproj" />
+  </Folder>
+</Solution>

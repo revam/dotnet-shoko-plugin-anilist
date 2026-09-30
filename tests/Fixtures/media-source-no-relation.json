@@ -1,0 +1,33 @@
+{
+  "data": {
+    "Media": {
+      "id": 90031,
+      "type": "ANIME",
+      "format": "TV",
+      "title": {
+        "english": null,
+        "native": null,
+        "romaji": "Seoul Nights"
+      },
+      "source": "MANGA",
+      "isAdult": false,
+      "countryOfOrigin": "KR",
+      "relations": {
+        "edges": [
+          {
+            "relationType": "PREQUEL",
+            "node": {
+              "id": 90030,
+              "type": "ANIME",
+              "format": "TV",
+              "countryOfOrigin": "KR",
+              "title": {
+                "romaji": "Seoul Days"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

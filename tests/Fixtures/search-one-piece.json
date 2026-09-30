@@ -1,0 +1,11 @@
+{
+  "data": {
+    "Page": {
+      "pageInfo": { "currentPage": 1, "lastPage": 5, "hasNextPage": true, "total": 42 },
+      "media": [
+        { "id": 21, "idMal": 21, "type": "ANIME", "format": "TV", "title": { "english": "ONE PIECE", "native": "ONE PIECE", "romaji": "ONE PIECE" }, "synonyms": [], "description": "Pirates.", "coverImage": { "color": null, "extraLarge": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21.jpg" }, "bannerImage": null, "startDate": { "year": 1999, "month": 10, "day": 20 }, "endDate": { "year": null, "month": null, "day": null }, "status": "RELEASING", "source": "MANGA", "isAdult": false, "isLicensed": true, "season": "FALL", "seasonYear": 1999, "countryOfOrigin": "JP", "averageScore": 88, "meanScore": 89, "favourites": 1, "popularity": 2, "episodes": null, "duration": 24, "genres": ["Action"], "updatedAt": 0, "trailer": null, "externalLinks": [], "stats": { "scoreDistribution": [] } },
+        { "id": 459, "idMal": 459, "type": "ANIME", "format": "MOVIE", "title": { "english": null, "native": "ONE PIECE", "romaji": "ONE PIECE: Movie 1" }, "synonyms": [], "description": null, "coverImage": null, "bannerImage": null, "startDate": { "year": 2000, "month": 3, "day": 4 }, "endDate": { "year": 2000, "month": 3, "day": 4 }, "status": "FINISHED", "source": "MANGA", "isAdult": false, "isLicensed": true, "season": "WINTER", "seasonYear": 2000, "countryOfOrigin": "JP", "averageScore": 70, "meanScore": 70, "favourites": 1, "popularity": 2, "episodes": 1, "duration": 50, "genres": [], "updatedAt": 0, "trailer": null, "externalLinks": [], "stats": null }
+      ]
+    }
+  }
+}

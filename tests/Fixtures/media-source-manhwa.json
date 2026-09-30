@@ -1,0 +1,45 @@
+{
+  "data": {
+    "Media": {
+      "id": 90001,
+      "type": "ANIME",
+      "format": "TV",
+      "title": {
+        "english": null,
+        "native": null,
+        "romaji": "Tower Climber"
+      },
+      "source": "MANGA",
+      "isAdult": false,
+      "countryOfOrigin": "JP",
+      "relations": {
+        "edges": [
+          {
+            "relationType": "SOURCE",
+            "node": {
+              "id": 190001,
+              "type": "MANGA",
+              "format": "MANGA",
+              "countryOfOrigin": "KR",
+              "title": {
+                "romaji": "Tower Climber"
+              }
+            }
+          },
+          {
+            "relationType": "SEQUEL",
+            "node": {
+              "id": 90002,
+              "type": "ANIME",
+              "format": "TV",
+              "countryOfOrigin": "JP",
+              "title": {
+                "romaji": "Tower Climber 2nd Season"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "data": {
+    "Media": {
+      "id": 90011,
+      "type": "ANIME",
+      "format": "TV",
+      "title": {
+        "english": null,
+        "native": null,
+        "romaji": "Cloud Sect"
+      },
+      "source": "COMIC",
+      "isAdult": false,
+      "countryOfOrigin": "CN",
+      "relations": {
+        "edges": [
+          {
+            "relationType": "SOURCE",
+            "node": {
+              "id": 190011,
+              "type": "MANGA",
+              "format": "MANGA",
+              "countryOfOrigin": "CN",
+              "title": {
+                "romaji": "Cloud Sect"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
