@@ -1,0 +1,9 @@
+{
+  "id": "e73c1e23-111a-4cf0-bab8-054b738c5101",
+  "name": "AniList Metadata",
+  "overview": "Supplies AniList anime metadata, images, cast and crew, tags, studios, relations, recommendations and broadcast times for the `anilist` metadata source, through Shoko's metadata provider contract.",
+  "authors": "revam",
+  "repository_url": "https://github.com/revam/dotnet-shoko-plugin-anilist",
+  "tags": [],
+  "releases": []
+}
