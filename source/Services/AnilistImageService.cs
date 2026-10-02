@@ -131,13 +131,13 @@ public sealed class AnilistImageService : IDisposable
 
         // One longer than the image table holds is dropped rather than
         // truncated, a truncated ID being a URL that fetches nothing.
-        if (resourceID.Length > AnilistImages.MaxResourceIDLength)
+        if (!AnilistImages.IsStorable(resourceID))
         {
             _logger.LogDebug("Skipping an AniList {ImageType} image whose resource ID is too long to store. (ResourceID={ResourceID})", imageType, resourceID);
             return null;
         }
 
-        return new() { ResourceID = resourceID, ImageType = imageType, IsDefault = true };
+        return new() { ResourceID = resourceID, ImageType = imageType };
     }
 
     #endregion

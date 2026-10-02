@@ -179,6 +179,7 @@ public static partial class AnilistMediaMapper
             Resources = Resources(media),
             CrossSourceIDs = CrossSourceIDs(media),
             Episodes = [.. episodes.Select(ToEpisodeData)],
+            DefaultImageResourceIDs = AnilistImages.ToDefaultImages((ImageEntityType.Primary, media.CoverImagePath), (ImageEntityType.Banner, media.BannerImagePath)),
         };
     }
 
@@ -940,6 +941,7 @@ public static partial class AnilistMediaMapper
             Gender = ParseGender(GetString(node["gender"])),
             BirthDay = ToFuzzyDate(ReadDateParts(node["dateOfBirth"])),
             Resources = [new() { Type = ResourceType.Metadata, Name = "AniList", Url = GetString(node["siteUrl"]) is { Length: > 0 } url ? url : $"https://anilist.co/character/{id}", ID = id }],
+            DefaultImageResourceIDs = PortraitDefault(node),
         };
     }
 
@@ -959,6 +961,7 @@ public static partial class AnilistMediaMapper
             BirthDay = ToFuzzyDate(ReadDateParts(node["dateOfBirth"])),
             DeathDay = ToFuzzyDate(ReadDateParts(node["dateOfDeath"])),
             Resources = [new() { Type = ResourceType.Metadata, Name = "AniList", Url = GetString(node["siteUrl"]) is { Length: > 0 } url ? url : $"https://anilist.co/staff/{id}", ID = id }],
+            DefaultImageResourceIDs = PortraitDefault(node),
         };
     }
 
@@ -966,6 +969,20 @@ public static partial class AnilistMediaMapper
         => [.. ReadStringList(node["name"]?["alternative"])
             .Where(alternative => !string.Equals(alternative, name, StringComparison.Ordinal))
             .Select(alternative => new MetadataNameData { Name = alternative })];
+
+    /// <summary>
+    /// The portrait a <c>Character</c> or <c>Staff</c> node names, as the
+    /// entry's default image.
+    /// </summary>
+    /// <param name="node">The node.</param>
+    /// <returns>
+    /// The default, or <see langword="null"/> when the node names no portrait,
+    /// which keeps the stored one as the portrait itself is kept.
+    /// </returns>
+    private static Dictionary<ImageEntityType, string>? PortraitDefault(JsonNode node)
+        => AnilistImages.ToDefaultImages((ImageEntityType.Primary, AnilistImages.ToResourceID(GetString(node["image"]?["large"])))) is { Count: > 0 } defaults
+            ? defaults
+            : null;
 
     private static void AddPortrait(AnilistPeople people, MetadataGuid id, JsonNode node)
     {

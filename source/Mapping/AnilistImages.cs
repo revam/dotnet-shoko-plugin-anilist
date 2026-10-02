@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using Shoko.Abstractions.Metadata.Enums;
 
 namespace Shoko.Plugin.Anilist.Mapping;
 
@@ -74,6 +76,33 @@ public static class AnilistImages
             return resourceID;
 
         return _imageServerUrl + resourceID;
+    }
+
+    /// <summary>
+    /// Whether a resource ID can be stored: present, and no longer than the
+    /// image table holds.
+    /// </summary>
+    /// <param name="resourceID">The resource ID, or <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> when the image can be linked.</returns>
+    public static bool IsStorable(string? resourceID)
+        => !string.IsNullOrEmpty(resourceID) && resourceID.Length <= MaxResourceIDLength;
+
+    /// <summary>
+    /// The default images of an entry, the ones AniList names on it, for the
+    /// store to pin. Only storable resource IDs are kept.
+    /// </summary>
+    /// <param name="images">The resource ID AniList names for each image type, or <see langword="null"/>.</param>
+    /// <returns>The defaults by image type, empty when AniList names none.</returns>
+    public static Dictionary<ImageEntityType, string> ToDefaultImages(params ReadOnlySpan<(ImageEntityType ImageType, string? ResourceID)> images)
+    {
+        var defaults = new Dictionary<ImageEntityType, string>();
+        foreach (var (imageType, resourceID) in images)
+        {
+            if (IsStorable(resourceID))
+                defaults[imageType] = resourceID!;
+        }
+
+        return defaults;
     }
 
     /// <summary>

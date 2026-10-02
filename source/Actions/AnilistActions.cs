@@ -34,7 +34,7 @@ public sealed class PurgeAllAnilistLinksAction(IMetadataLinkingService linkingSe
 
     /// <inheritdoc/>
     public Task Execute(IProgress<decimal> progress, CancellationToken token)
-        => linkingService.RemoveAllLinks(AnilistSources.AniList, cancellationToken: token);
+        => linkingService.RemoveAllLinks(AnilistSources.AniList, progress: progress, cancellationToken: token);
 }
 
 /// <summary>
@@ -60,7 +60,7 @@ public sealed class PurgeAllUnusedAnilistAnimeAction(IMetadataPurgeService purge
 
     /// <inheritdoc/>
     public Task Execute(IProgress<decimal> progress, CancellationToken token)
-        => purgeService.PurgeUnused(AnilistSources.AniList, entityType: MetadataEntityType.Series, cancellationToken: token);
+        => purgeService.PurgeUnused(AnilistSources.AniList, entityType: MetadataEntityType.Series, progress: progress, cancellationToken: token);
 }
 
 /// <summary>
@@ -81,7 +81,7 @@ public sealed class SearchForAnilistMatchesAction(IMetadataRefreshService refres
 
     /// <inheritdoc/>
     public Task Execute(IProgress<decimal> progress, CancellationToken token)
-        => refreshService.AutoSearchAll(AnilistSources.AniList, cancellationToken: token);
+        => refreshService.AutoSearchAll(AnilistSources.AniList, progress: progress, cancellationToken: token);
 }
 
 /// <summary>
@@ -106,6 +106,7 @@ public sealed class UpdateAllAnilistAnimeAction(IMetadataRefreshService refreshS
             force: true,
             new() { DownloadImages = false, Reason = MetadataRefreshReason.Requested },
             MetadataEntityType.Series,
+            progress,
             token
         );
 }
@@ -132,6 +133,7 @@ public sealed class UpdateAllAnilistAnimeWithImagesAction(IMetadataRefreshServic
             force: true,
             new() { DownloadImages = true, Reason = MetadataRefreshReason.Requested },
             MetadataEntityType.Series,
+            progress,
             token
         );
 }

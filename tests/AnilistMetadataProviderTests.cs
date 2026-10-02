@@ -99,7 +99,6 @@ public class AnilistMetadataProviderTests
         Assert.NotNull(series);
         Assert.Equal([ImageEntityType.Primary, ImageEntityType.Banner], series.Select(image => image.ImageType));
         Assert.Equal("media/anime/cover/large/bx21-YCDoj1EkAxFn.jpg", series[0].ResourceID);
-        Assert.All(series, image => Assert.True(image.IsDefault));
         Assert.Equal("staff/large/n95011.jpg", Assert.Single(creator!).ResourceID);
         Assert.Empty(faceless!);
         Assert.Null(episode);

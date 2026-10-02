@@ -121,7 +121,7 @@ public sealed class AnilistBackgroundService(
 
         try
         {
-            return await purgeService.PurgeUnused(AnilistSources.AniList, DateTime.Now.AddDays(-threshold), MetadataEntityType.Series, cancellationToken).ConfigureAwait(false);
+            return await purgeService.PurgeUnused(AnilistSources.AniList, DateTime.Now.AddDays(-threshold), MetadataEntityType.Series, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

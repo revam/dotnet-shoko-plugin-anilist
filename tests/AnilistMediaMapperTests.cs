@@ -105,6 +105,8 @@ public class AnilistMediaMapperTests
         Assert.Empty(series.Seasons);
         Assert.Equal(["mal://series/21"], series.CrossSourceIDs.Select(id => id.ToString()));
         Assert.Empty(series.Episodes[0].CrossSourceIDs);
+        Assert.Equal("media/anime/cover/large/bx21-YCDoj1EkAxFn.jpg", series.DefaultImageResourceIDs![ImageEntityType.Primary]);
+        Assert.Equal("media/anime/banner/21-wf37VakJmZqs.jpg", series.DefaultImageResourceIDs[ImageEntityType.Banner]);
     }
 
     [Fact]
@@ -256,6 +258,8 @@ public class AnilistMediaMapperTests
         Assert.Equal(PersonGender.Female, people.Creators[95012].Gender);
         Assert.Contains(AnilistUtility.Guid(MetadataEntityType.Character, 40), people.Portraits.Keys);
         Assert.DoesNotContain(AnilistUtility.Guid(MetadataEntityType.Character, 41), people.Portraits.Keys);
+        Assert.Equal("character/large/b40-Bn6Bmf3LLIf3.png", people.Characters[40].DefaultImageResourceIDs![ImageEntityType.Primary]);
+        Assert.Null(people.Characters[41].DefaultImageResourceIDs);
         Assert.Equal(AnilistUtility.Guid(MetadataEntityType.Character, 40), people.Cast[0].CharacterID);
         Assert.Equal(CastRoleType.MainCharacter, people.Cast[0].RoleType);
     }
