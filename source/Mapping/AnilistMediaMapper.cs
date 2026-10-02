@@ -216,7 +216,7 @@ public static partial class AnilistMediaMapper
             var language = AnilistUtility.GetMainTitleLanguage(media.OriginalLanguageCode);
             titles.Add(new TitleStub
             {
-                Source = AnilistSources.AniList,
+                Source = MetadataSource.AniList,
                 Language = language,
                 LanguageCode = language.GetString(),
                 Value = media.MainTitle,
@@ -245,7 +245,7 @@ public static partial class AnilistMediaMapper
 
         return string.IsNullOrEmpty(media.EnglishOverview)
             ? []
-            : [new TextStub { Source = AnilistSources.AniList, Language = TitleLanguage.English, LanguageCode = "en", Value = media.EnglishOverview }];
+            : [new TextStub { Source = MetadataSource.AniList, Language = TitleLanguage.English, LanguageCode = "en", Value = media.EnglishOverview }];
     }
 
     /// <summary>
@@ -354,7 +354,7 @@ public static partial class AnilistMediaMapper
     private static TitleStub Title(string value, string? languageCode, TitleType type)
         => new()
         {
-            Source = AnilistSources.AniList,
+            Source = MetadataSource.AniList,
             Language = string.IsNullOrEmpty(languageCode) ? TitleLanguage.Unknown : languageCode.GetTitleLanguage(),
             LanguageCode = string.IsNullOrEmpty(languageCode) ? "unk" : languageCode,
             Value = value,
@@ -518,7 +518,7 @@ public static partial class AnilistMediaMapper
             [
                 new TitleStub
                 {
-                    Source = AnilistSources.AniList,
+                    Source = MetadataSource.AniList,
                     Language = TitleLanguage.English,
                     LanguageCode = "en",
                     Value = $"Episode {episode.EpisodeNumber.ToString(CultureInfo.InvariantCulture)}",
@@ -793,7 +793,7 @@ public static partial class AnilistMediaMapper
         var self = AnilistUtility.SeriesGuid(anilistAnimeID);
         return [.. direct
             .Concat(reverse
-                .Where(edge => edge.SuggestedBy.Source == AnilistSources.AniList && edge.SuggestedBy.EntityType == MetadataEntityType.Series)
+                .Where(edge => edge.SuggestedBy.Source == MetadataSource.AniList && edge.SuggestedBy.EntityType == MetadataEntityType.Series)
                 .Select(edge => new MetadataSuggestionData { SuggestedID = edge.SuggestedBy, Kind = SuggestionKind.Recommended, Score = edge.Score }))
             .Where(suggestion => suggestion.SuggestedID != self)
             .DistinctBy(suggestion => suggestion.SuggestedID)

@@ -53,7 +53,7 @@ public sealed class AnilistLinkingService(
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>A task that completes once the links are reset.</returns>
     public Task ResetEpisodeLinks(int anidbAnimeID, bool allowAutoMatch, CancellationToken cancellationToken = default)
-        => linkingService.ResetEpisodeLinks(AnilistSources.AniList, anidbAnimeID, allowAutoMatch, cancellationToken);
+        => linkingService.ResetEpisodeLinks(MetadataSource.AniList, anidbAnimeID, allowAutoMatch, cancellationToken);
 
     #endregion
 

@@ -67,14 +67,14 @@ internal sealed class FakeCrossReferenceStore : IMetadataCrossReferenceStore
 
     /// <summary>Links an AniDB anime to an AniList anime, for arranging a test.</summary>
     public FakeCrossReferenceStore AddSeries(int anidbAnimeID, int anilistAnimeID, MatchRating rating = MatchRating.UserVerified)
-        => Add(new() { EntityType = MetadataEntityType.Series, Source = AnilistSources.AniList, AnidbAnimeID = anidbAnimeID, ProviderID = AnilistUtility.SeriesGuid(anilistAnimeID), MatchRating = rating });
+        => Add(new() { EntityType = MetadataEntityType.Series, Source = MetadataSource.AniList, AnidbAnimeID = anidbAnimeID, ProviderID = AnilistUtility.SeriesGuid(anilistAnimeID), MatchRating = rating });
 
     /// <summary>Links an AniDB episode to an AniList episode, or to nothing, for arranging a test.</summary>
     public FakeCrossReferenceStore AddEpisode(int anidbAnimeID, int anidbEpisodeID, int anilistEpisodeID, MatchRating rating = MatchRating.UserVerified)
         => Add(new()
         {
             EntityType = MetadataEntityType.Episode,
-            Source = AnilistSources.AniList,
+            Source = MetadataSource.AniList,
             AnidbAnimeID = anidbAnimeID,
             AnidbEpisodeID = anidbEpisodeID,
             ProviderID = anilistEpisodeID is 0 ? null : AnilistUtility.EpisodeGuid(anilistEpisodeID),

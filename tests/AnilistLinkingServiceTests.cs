@@ -33,7 +33,9 @@ public class AnilistLinkingServiceTests
 
         await harness.Get<AnilistLinkingService>().ResetEpisodeLinks(100, allowAutoMatch: false, TestContext.Current.CancellationToken);
 
-        harness.LinkingService.Verify(service => service.ResetEpisodeLinks(AnilistSources.AniList, 100, false, It.IsAny<CancellationToken>()), Times.Once);
+        // An expression tree can't read an extension property, so take it first.
+        var anilist = MetadataSource.AniList;
+        harness.LinkingService.Verify(service => service.ResetEpisodeLinks(anilist, 100, false, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -101,7 +103,7 @@ public class AnilistLinkingServiceTests
             .AddEpisode(100, 100001, AnilistUtility.PackEpisodeID(21, 1), MatchRating.DateAndNumberMatches)
             .AddEpisode(100, 100003, AnilistUtility.PackEpisodeID(22, 1), MatchRating.UserVerified)
             .AddEpisode(100, 100004, AnilistUtility.PackEpisodeID(22, 2), MatchRating.FirstAvailable);
-        var existing = harness.Stores.CrossReferences.GetEpisodeLinksForSeries(100, AnilistSources.AniList);
+        var existing = harness.Stores.CrossReferences.GetEpisodeLinksForSeries(100, MetadataSource.AniList);
         IReadOnlyList<IMetadataEpisodeCrossReference>? handed = null;
         harness.MatchingEngine
             .Setup(engine => engine.MatchEpisodes(It.IsAny<IReadOnlyList<IAnidbEpisode>>(), It.IsAny<IReadOnlyList<IEpisode>>(), It.IsAny<IReadOnlyList<IMetadataEpisodeCrossReference>?>(), It.IsAny<EpisodeMatchOptions?>()))
@@ -122,7 +124,7 @@ public class AnilistLinkingServiceTests
         harness.Stores.CrossReferences
             .AddEpisode(100, 100001, AnilistUtility.PackEpisodeID(21, 1), MatchRating.DateAndNumberMatches)
             .AddEpisode(100, 100002, AnilistUtility.PackEpisodeID(21, 5), MatchRating.UserVerified);
-        var existing = harness.Stores.CrossReferences.GetEpisodeLinksForSeries(100, AnilistSources.AniList);
+        var existing = harness.Stores.CrossReferences.GetEpisodeLinksForSeries(100, MetadataSource.AniList);
         IReadOnlyList<IMetadataEpisodeCrossReference>? handed = null;
         harness.MatchingEngine
             .Setup(engine => engine.MatchEpisodes(It.IsAny<IReadOnlyList<IAnidbEpisode>>(), It.IsAny<IReadOnlyList<IEpisode>>(), It.IsAny<IReadOnlyList<IMetadataEpisodeCrossReference>?>(), It.IsAny<EpisodeMatchOptions?>()))
@@ -143,7 +145,7 @@ public class AnilistLinkingServiceTests
         harness.Stores.CrossReferences
             .AddEpisode(100, 100001, 0, MatchRating.UserVerified)
             .AddEpisode(100, 100002, 0, MatchRating.None);
-        var existing = harness.Stores.CrossReferences.GetEpisodeLinksForSeries(100, AnilistSources.AniList);
+        var existing = harness.Stores.CrossReferences.GetEpisodeLinksForSeries(100, MetadataSource.AniList);
         var calls = harness.MatchByPosition();
 
         var matches = harness.Get<AnilistLinkingService>().Match(anime.Object, episodes, 21, existing);

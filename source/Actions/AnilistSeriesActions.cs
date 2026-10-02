@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Shoko.Abstractions.Actions;
+using Shoko.Abstractions.Metadata;
 using Shoko.Abstractions.Metadata.Services;
 using Shoko.Plugin.Anilist.Metadata;
 using Shoko.Plugin.Anilist.Services;
@@ -56,7 +57,7 @@ public sealed class AutoSearchAnilistSeriesAction(IMetadataRefreshService refres
 
     /// <inheritdoc/>
     public override Task Execute(CancellationToken token = default)
-        => refreshService.AutoSearch(AnilistSources.AniList, Series.AnidbAnimeID, force: true, token);
+        => refreshService.AutoSearch(MetadataSource.AniList, Series.AnidbAnimeID, force: true, token);
 }
 
 /// <summary>
@@ -109,7 +110,7 @@ public sealed class UpdateAnilistImagesForceSeriesAction(IMetadataRefreshService
 
     /// <inheritdoc/>
     public override Task Execute(CancellationToken token = default)
-        => refreshService.DownloadImagesForAnime(Series.AnidbAnimeID, AnilistSources.AniList, force: true, token);
+        => refreshService.DownloadImagesForAnime(Series.AnidbAnimeID, MetadataSource.AniList, force: true, token);
 }
 
 /// <summary>
@@ -132,5 +133,5 @@ public sealed class UpdateAnilistInfoSeriesAction(IMetadataRefreshService refres
 
     /// <inheritdoc/>
     public override Task Execute(CancellationToken token = default)
-        => refreshService.RefreshForAnime(Series.AnidbAnimeID, AnilistSources.AniList, force: true, cancellationToken: token);
+        => refreshService.RefreshForAnime(Series.AnidbAnimeID, MetadataSource.AniList, force: true, cancellationToken: token);
 }

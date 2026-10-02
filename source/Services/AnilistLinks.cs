@@ -23,7 +23,7 @@ public sealed class AnilistLinks(IMetadataCrossReferenceStore crossReferences)
     /// <param name="anidbAnimeID">The AniDB anime ID.</param>
     /// <returns>The links, in order.</returns>
     public IReadOnlyList<IMetadataSeriesCrossReference> GetSeriesLinks(int anidbAnimeID)
-        => anidbAnimeID <= 0 ? [] : crossReferences.GetSeriesLinks(anidbAnimeID, AnilistSources.AniList);
+        => anidbAnimeID <= 0 ? [] : crossReferences.GetSeriesLinks(anidbAnimeID, MetadataSource.AniList);
 
     /// <summary>
     /// The AniList anime IDs an AniDB anime is linked to.

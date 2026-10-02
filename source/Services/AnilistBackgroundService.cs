@@ -88,14 +88,14 @@ public sealed class AnilistBackgroundService(
     {
         try
         {
-            if (seriesStore.GetAllSeries(AnilistSources.AniList).Count > 0)
+            if (seriesStore.GetAllSeries(MetadataSource.AniList).Count > 0)
                 return 0;
 
-            if (!crossReferences.GetAllSeriesLinks(AnilistSources.AniList).Any(link => link.ProviderID is not null))
+            if (!crossReferences.GetAllSeriesLinks(MetadataSource.AniList).Any(link => link.ProviderID is not null))
                 return 0;
 
             logger.LogInformation("No AniList anime is stored while some are linked. Refreshing every linked AniList anime.");
-            return await refreshService.RefreshAllLinked(AnilistSources.AniList, entityType: MetadataEntityType.Series, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return await refreshService.RefreshAllLinked(MetadataSource.AniList, entityType: MetadataEntityType.Series, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -121,7 +121,7 @@ public sealed class AnilistBackgroundService(
 
         try
         {
-            return await purgeService.PurgeUnused(AnilistSources.AniList, DateTime.Now.AddDays(-threshold), MetadataEntityType.Series, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return await purgeService.PurgeUnused(MetadataSource.AniList, DateTime.Now.AddDays(-threshold), MetadataEntityType.Series, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

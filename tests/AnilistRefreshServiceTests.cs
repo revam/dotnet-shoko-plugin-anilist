@@ -40,7 +40,7 @@ public class AnilistRefreshServiceTests
         var series = stores.Series.Series[_series];
         Assert.Equal(["ONE PIECE", "ONE PIECE", "ONE PIECE", "OP", "ワンピース"], series.Titles.Select(title => title.Value));
         Assert.Equal([TitleType.Main, TitleType.Official, TitleType.Official, TitleType.Synonym, TitleType.Synonym], series.Titles.Select(title => title.Type));
-        Assert.All(series.Titles, title => Assert.Equal(AnilistSources.AniList, title.Source));
+        Assert.All(series.Titles, title => Assert.Equal(MetadataSource.AniList, title.Source));
         Assert.StartsWith("Gold Roger", Assert.Single(series.Overviews).Value, StringComparison.Ordinal);
         Assert.Equal(8.8, series.Rating, 3);
         Assert.Equal(150, series.RatingVotes);

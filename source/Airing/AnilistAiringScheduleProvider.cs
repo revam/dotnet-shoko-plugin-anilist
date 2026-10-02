@@ -106,7 +106,7 @@ public sealed class AnilistAiringScheduleProvider(
     {
         ArgumentNullException.ThrowIfNull(series);
 
-        if (series.Source == AnilistSources.AniList)
+        if (series.Source == MetadataSource.AniList)
             return AnilistUtility.TryGetID(series.ID, MetadataEntityType.Series, out var id) ? [id] : [];
 
         var anidbAnimeIDs = new HashSet<int>();

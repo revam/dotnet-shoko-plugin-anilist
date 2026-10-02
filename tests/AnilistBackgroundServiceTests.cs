@@ -27,7 +27,9 @@ public class AnilistBackgroundServiceTests
         AnilistStoreTests.StoreAnime(harness.Stores, 21);
         await background.RefreshIfNothingStored(TestContext.Current.CancellationToken);
 
-        harness.RefreshService.Verify(service => service.RefreshAllLinked(AnilistSources.AniList, false, null, MetadataEntityType.Series, null, It.IsAny<CancellationToken>()), Times.Once);
+        // An expression tree can't read an extension property, so take it first.
+        var anilist = MetadataSource.AniList;
+        harness.RefreshService.Verify(service => service.RefreshAllLinked(anilist, false, null, MetadataEntityType.Series, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -51,7 +53,9 @@ public class AnilistBackgroundServiceTests
         harness.Stores.Configuration.AutoPurgeUnlinkedAfterDays = 0;
         await background.PurgeUnused(TestContext.Current.CancellationToken);
 
-        harness.PurgeService.Verify(service => service.PurgeUnused(AnilistSources.AniList, It.Is<DateTime?>(cutoff => cutoff < DateTime.Now.AddDays(-13) && cutoff > DateTime.Now.AddDays(-15)), MetadataEntityType.Series, null, It.IsAny<CancellationToken>()), Times.Once);
+        // An expression tree can't read an extension property, so take it first.
+        var anilist = MetadataSource.AniList;
+        harness.PurgeService.Verify(service => service.PurgeUnused(anilist, It.Is<DateTime?>(cutoff => cutoff < DateTime.Now.AddDays(-13) && cutoff > DateTime.Now.AddDays(-15)), MetadataEntityType.Series, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -65,10 +69,12 @@ public class AnilistBackgroundServiceTests
         await new PurgeAllUnusedAnilistAnimeAction(harness.PurgeService.Object).Execute(progress, TestContext.Current.CancellationToken);
         await new PurgeAllAnilistLinksAction(harness.LinkingService.Object).Execute(progress, TestContext.Current.CancellationToken);
 
-        harness.RefreshService.Verify(service => service.RefreshAllLinked(AnilistSources.AniList, true, It.Is<MetadataRefreshOptions?>(options => options!.DownloadImages && options.Reason == MetadataRefreshReason.Requested), MetadataEntityType.Series, progress, It.IsAny<CancellationToken>()), Times.Once);
-        harness.RefreshService.Verify(service => service.AutoSearchAll(AnilistSources.AniList, false, progress, It.IsAny<CancellationToken>()), Times.Once);
-        harness.PurgeService.Verify(service => service.PurgeUnused(AnilistSources.AniList, null, MetadataEntityType.Series, progress, It.IsAny<CancellationToken>()), Times.Once);
-        harness.LinkingService.Verify(service => service.RemoveAllLinks(AnilistSources.AniList, true, true, false, progress, It.IsAny<CancellationToken>()), Times.Once);
+        // An expression tree can't read an extension property, so take it first.
+        var anilist = MetadataSource.AniList;
+        harness.RefreshService.Verify(service => service.RefreshAllLinked(anilist, true, It.Is<MetadataRefreshOptions?>(options => options!.DownloadImages && options.Reason == MetadataRefreshReason.Requested), MetadataEntityType.Series, progress, It.IsAny<CancellationToken>()), Times.Once);
+        harness.RefreshService.Verify(service => service.AutoSearchAll(anilist, false, progress, It.IsAny<CancellationToken>()), Times.Once);
+        harness.PurgeService.Verify(service => service.PurgeUnused(anilist, null, MetadataEntityType.Series, progress, It.IsAny<CancellationToken>()), Times.Once);
+        harness.LinkingService.Verify(service => service.RemoveAllLinks(anilist, true, true, false, progress, It.IsAny<CancellationToken>()), Times.Once);
         harness.LinkingService.Verify(service => service.ResetAutoLinkingState(It.IsAny<MetadataSource>(), It.IsAny<bool>()), Times.Never);
     }
 }

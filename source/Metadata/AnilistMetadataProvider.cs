@@ -23,7 +23,7 @@ namespace Shoko.Plugin.Anilist.Metadata;
 
 /// <summary>
 /// Supplies AniList anime and their episodes to Shoko, under the
-/// <see cref="AnilistSources.AniList"/> source.
+/// <c>MetadataSource.AniList</c> source.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -103,7 +103,7 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
     public string? Description => "AniList, a community database of anime and manga.";
 
     /// <inheritdoc/>
-    public MetadataSource Source => AnilistSources.AniList;
+    public MetadataSource Source => MetadataSource.AniList;
 
     /// <summary>
     /// Off: installing the plugin does not on its own start linking anime.

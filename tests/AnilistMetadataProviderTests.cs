@@ -28,11 +28,11 @@ public class AnilistMetadataProviderTests
         using var harness = new ServiceHarness();
         var provider = harness.Get<AnilistMetadataProvider>();
 
-        Assert.Same(AnilistSources.AniList, provider.Source);
+        Assert.Same(MetadataSource.AniList, provider.Source);
         Assert.Equal("anilist", provider.Source.Value);
         Assert.Equal("AniList", provider.Source.Name);
         Assert.Equal("The anime and manga database at anilist.co.", provider.Source.Description);
-        Assert.True(MetadataSource.TryGet("AniList", out var parsed) && ReferenceEquals(parsed, AnilistSources.AniList));
+        Assert.True(MetadataSource.TryGet("AniList", out var parsed) && ReferenceEquals(parsed, MetadataSource.AniList));
         Assert.Equal([MetadataEntityType.Series, MetadataEntityType.Episode], provider.LinkableEntityTypes.OrderBy(type => type.Value, StringComparer.Ordinal).Reverse());
         Assert.False(provider.AutoLinkByDefault);
         Assert.True(provider.AutoLinkRestrictedByDefault);
@@ -103,7 +103,9 @@ public class AnilistMetadataProviderTests
         Assert.Empty(faceless!);
         Assert.Null(episode);
         Assert.Null(unknown);
-        harness.ImageManager.Verify(manager => manager.RegisterTemplateUrl(AnilistSources.AniList, "https://s4.anilist.co/file/anilistcdn/{0}"), Times.Once);
+        // An expression tree can't read an extension property, so take it first.
+        var anilist = MetadataSource.AniList;
+        harness.ImageManager.Verify(manager => manager.RegisterTemplateUrl(anilist, "https://s4.anilist.co/file/anilistcdn/{0}"), Times.Once);
     }
 
     [Fact]
@@ -218,7 +220,7 @@ public class AnilistMetadataProviderTests
         var exception = await Assert.ThrowsAsync<AnilistUnavailableException>(() => harness.Get<AnilistMetadataProvider>().SearchSeries(new() { Query = "one piece" }, TestContext.Current.CancellationToken));
 
         Assert.IsAssignableFrom<MetadataProviderUnavailableException>(exception);
-        Assert.Same(AnilistSources.AniList, exception.MetadataSource);
+        Assert.Same(MetadataSource.AniList, exception.MetadataSource);
         Assert.NotNull(exception.RetryAfter);
         Assert.InRange(exception.RetryAfter.Value, TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(1));
     }
@@ -260,7 +262,7 @@ public class AnilistMetadataProviderTests
 
         Assert.Equal(42, total);
         Assert.Equal([AnilistUtility.SeriesGuid(21), AnilistUtility.SeriesGuid(459)], page.Select(result => result.ID));
-        Assert.All(page, result => Assert.Equal(AnilistSources.AniList, result.Source));
+        Assert.All(page, result => Assert.Equal(MetadataSource.AniList, result.Source));
         Assert.Equal("ONE PIECE", page[0].Title);
         Assert.Equal("ONE PIECE: Movie 1", page[1].Title);
         Assert.Equal(8.8m, page[0].UserRating);

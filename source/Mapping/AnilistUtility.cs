@@ -117,7 +117,7 @@ public static partial class AnilistUtility
     /// <param name="id">AniList's ID for it, or the packed ID of an episode.</param>
     /// <returns>The identifier, e.g. <c>anilist://creator/95</c>.</returns>
     public static MetadataGuid Guid(MetadataEntityType entityType, int id)
-        => new(AnilistSources.AniList, entityType, FormatID(id));
+        => new(MetadataSource.AniList, entityType, FormatID(id));
 
     /// <summary>
     /// The identifier of an AniList anime.
@@ -144,7 +144,7 @@ public static partial class AnilistUtility
     {
         ArgumentNullException.ThrowIfNull(genre);
 
-        return new(AnilistSources.AniList, MetadataEntityType.Tag, genre.Trim());
+        return new(MetadataSource.AniList, MetadataEntityType.Tag, genre.Trim());
     }
 
     /// <summary>
@@ -158,7 +158,7 @@ public static partial class AnilistUtility
     public static bool TryGetID(MetadataGuid? id, MetadataEntityType entityType, out int anilistID)
     {
         anilistID = 0;
-        return id is not null && id.Source == AnilistSources.AniList && id.EntityType == entityType && TryParseID(id.ID, out anilistID);
+        return id is not null && id.Source == MetadataSource.AniList && id.EntityType == entityType && TryParseID(id.ID, out anilistID);
     }
 
     #endregion

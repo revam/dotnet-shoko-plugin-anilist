@@ -26,7 +26,7 @@ public sealed class AnilistUnavailableException : MetadataProviderUnavailableExc
     /// <param name="errors">The GraphQL error messages, when the response carried any.</param>
     /// <param name="innerException">The exception behind this one, if any.</param>
     public AnilistUnavailableException(string message, TimeSpan? retryAfter = null, HttpStatusCode? statusCode = null, IReadOnlyList<string>? errors = null, Exception? innerException = null)
-        : base(AnilistSources.AniList, message, retryAfter, innerException)
+        : base(Shoko.Abstractions.Metadata.MetadataSource.AniList, message, retryAfter, innerException)
     {
         StatusCode = statusCode;
         Errors = errors ?? [];

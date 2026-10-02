@@ -34,7 +34,7 @@ public sealed class PurgeAllAnilistLinksAction(IMetadataLinkingService linkingSe
 
     /// <inheritdoc/>
     public Task Execute(IProgress<decimal> progress, CancellationToken token)
-        => linkingService.RemoveAllLinks(AnilistSources.AniList, progress: progress, cancellationToken: token);
+        => linkingService.RemoveAllLinks(MetadataSource.AniList, progress: progress, cancellationToken: token);
 }
 
 /// <summary>
@@ -60,7 +60,7 @@ public sealed class PurgeAllUnusedAnilistAnimeAction(IMetadataPurgeService purge
 
     /// <inheritdoc/>
     public Task Execute(IProgress<decimal> progress, CancellationToken token)
-        => purgeService.PurgeUnused(AnilistSources.AniList, entityType: MetadataEntityType.Series, progress: progress, cancellationToken: token);
+        => purgeService.PurgeUnused(MetadataSource.AniList, entityType: MetadataEntityType.Series, progress: progress, cancellationToken: token);
 }
 
 /// <summary>
@@ -81,7 +81,7 @@ public sealed class SearchForAnilistMatchesAction(IMetadataRefreshService refres
 
     /// <inheritdoc/>
     public Task Execute(IProgress<decimal> progress, CancellationToken token)
-        => refreshService.AutoSearchAll(AnilistSources.AniList, progress: progress, cancellationToken: token);
+        => refreshService.AutoSearchAll(MetadataSource.AniList, progress: progress, cancellationToken: token);
 }
 
 /// <summary>
@@ -102,7 +102,7 @@ public sealed class UpdateAllAnilistAnimeAction(IMetadataRefreshService refreshS
     /// <inheritdoc/>
     public Task Execute(IProgress<decimal> progress, CancellationToken token)
         => refreshService.RefreshAllLinked(
-            AnilistSources.AniList,
+            MetadataSource.AniList,
             force: true,
             new() { DownloadImages = false, Reason = MetadataRefreshReason.Requested },
             MetadataEntityType.Series,
@@ -129,7 +129,7 @@ public sealed class UpdateAllAnilistAnimeWithImagesAction(IMetadataRefreshServic
     /// <inheritdoc/>
     public Task Execute(IProgress<decimal> progress, CancellationToken token)
         => refreshService.RefreshAllLinked(
-            AnilistSources.AniList,
+            MetadataSource.AniList,
             force: true,
             new() { DownloadImages = true, Reason = MetadataRefreshReason.Requested },
             MetadataEntityType.Series,

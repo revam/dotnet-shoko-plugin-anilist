@@ -95,7 +95,7 @@ public class AnilistMediaMapperTests
         var series = AnilistMediaMapper.ToSeriesData(anime, episodes);
 
         Assert.Equal("anilist://series/21", series.ID.ToString());
-        Assert.All(series.Titles, title => Assert.Equal(AnilistSources.AniList, title.Source));
+        Assert.All(series.Titles, title => Assert.Equal(MetadataSource.AniList, title.Source));
         Assert.Equal(TitleLanguage.Romaji, series.Titles[0].Language);
         Assert.Equal("en", series.Titles[2].LanguageCode);
         Assert.Equal("unk", series.Titles[3].LanguageCode);

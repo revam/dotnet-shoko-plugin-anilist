@@ -6,7 +6,8 @@ AniList support that used to ship in the server.
 
 `AnilistSources` registers the source, with a short description, from its
 static constructor. `RegisterServices` touches the class, so the source is in
-place before the core closes registration after plugin setup.
+place before the core closes registration after plugin setup. The plugin reads
+it as `MetadataSource.AniList`, a C# 14 extension member.
 
 ## What it does
 

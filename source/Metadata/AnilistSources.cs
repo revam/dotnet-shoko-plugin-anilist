@@ -16,11 +16,19 @@ public static class AnilistSources
 {
     static AnilistSources()
     {
-        AniList = MetadataSource.Register("AniList", "anilist", description: "The anime and manga database at anilist.co.");
+        Source = MetadataSource.Register("AniList", "anilist", description: "The anime and manga database at anilist.co.");
     }
 
     /// <summary>
-    /// AniList, as <c>anilist</c>.
+    /// The registered source, behind the extension member.
     /// </summary>
-    public static MetadataSource AniList { get; }
+    private static MetadataSource Source { get; }
+
+    extension(MetadataSource)
+    {
+        /// <summary>
+        /// AniList, as <c>anilist</c>.
+        /// </summary>
+        public static MetadataSource AniList => Source;
+    }
 }

@@ -122,7 +122,7 @@ public class AnilistAiringScheduleProviderTests
         var (harness, provider, _) = Registered();
         using var _ = harness;
         var other = new Mock<ISeries>();
-        other.SetupGet(s => s.Source).Returns(AnilistSources.AniList);
+        other.SetupGet(s => s.Source).Returns(MetadataSource.AniList);
         other.SetupGet(s => s.ID).Returns(AnilistUtility.SeriesGuid(77));
 
         Assert.Equal([77], provider.GetAnilistAnimeIDs(other.Object));

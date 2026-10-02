@@ -68,7 +68,7 @@ public sealed class AnilistImageService : IDisposable
         if (string.Equals(template, _registeredTemplate, StringComparison.Ordinal))
             return;
 
-        _imageManager.RegisterTemplateUrl(AnilistSources.AniList, template);
+        _imageManager.RegisterTemplateUrl(MetadataSource.AniList, template);
         _registeredTemplate = template;
     }
 
@@ -101,7 +101,7 @@ public sealed class AnilistImageService : IDisposable
     {
         ArgumentNullException.ThrowIfNull(entityID);
 
-        if (entityID.Source != AnilistSources.AniList)
+        if (entityID.Source != MetadataSource.AniList)
             return null;
 
         RegisterTemplateUrl();

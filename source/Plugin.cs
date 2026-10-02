@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
+using Shoko.Abstractions.Metadata;
 using Shoko.Abstractions.Plugin;
 using Shoko.Plugin.Anilist.Airing;
 using Shoko.Plugin.Anilist.Api;
@@ -33,7 +34,7 @@ public class Plugin : IPlugin, IPluginServiceRegistration
     public Guid ID { get; private init; } = PluginID;
 
     /// <inheritdoc/>
-    public string Name { get; private set; } = "AniList Metadata";
+    public string Name { get; private set; } = "AniList";
 
     /// <inheritdoc/>
     public string Description { get; private set; } = """
@@ -47,7 +48,7 @@ public class Plugin : IPlugin, IPluginServiceRegistration
     {
         // Touching the class runs its static constructor, which registers the
         // source before the core closes registration after plugin setup.
-        _ = AnilistSources.AniList;
+        _ = MetadataSource.AniList;
 
         // Concrete singletons, because the plugin's own code resolves them.
         // The providers are also discovered by the server, which prefers a

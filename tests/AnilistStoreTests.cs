@@ -178,7 +178,7 @@ public class AnilistStoreTests
         Assert.Equal(AnilistUtility.SeriesGuid(21), harness.Store.GetSeries(21)?.ID);
         Assert.Null(harness.Store.GetSeries(0));
         Assert.Equal(1, harness.Store.GetSeries(21)?.Episodes.Single().EpisodeNumber);
-        Assert.Equal(AnilistSources.AniList, harness.Store.GetSeries(21)?.Source);
+        Assert.Equal(MetadataSource.AniList, harness.Store.GetSeries(21)?.Source);
     }
 
     /// <summary>

@@ -79,7 +79,7 @@ public class AnilistSuggestionMergeTests
         var stored = harness.Stores.Suggestions.Entries[Series(21)];
         Assert.Equal(Series(999), stored[0].SuggestedID);
         Assert.Contains(stored, suggestion => suggestion.SuggestedID == Series(1735));
-        Assert.All(stored, suggestion => Assert.Equal(AnilistSources.AniList, suggestion.SuggestedID.Source));
+        Assert.All(stored, suggestion => Assert.Equal(MetadataSource.AniList, suggestion.SuggestedID.Source));
         Assert.Equal([1735, 6702], harness.Stores.Store.GetAnime(21)!.Recommendations.Select(recommendation => recommendation.ID));
     }
 

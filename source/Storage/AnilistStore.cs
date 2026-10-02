@@ -7,6 +7,7 @@ using Shoko.Abstractions.Metadata;
 using Shoko.Abstractions.Metadata.Services;
 using Shoko.Abstractions.Metadata.Storage;
 using Shoko.Plugin.Anilist.Mapping;
+using Shoko.Plugin.Anilist.Metadata;
 
 namespace Shoko.Plugin.Anilist.Storage;
 
@@ -315,7 +316,7 @@ public sealed class AnilistStore
         if (key.Split('/', 2) is not [var kind, var id] || !MetadataEntityType.TryGet(kind, out var entityType) || string.IsNullOrEmpty(id))
             return false;
 
-        var guid = new MetadataGuid(Metadata.AnilistSources.AniList, entityType, id);
+        var guid = new MetadataGuid(MetadataSource.AniList, entityType, id);
         return entityType == MetadataEntityType.Creator ? People.GetCreator(guid) is not null
             : entityType == MetadataEntityType.Character && People.GetCharacter(guid) is not null;
     }
