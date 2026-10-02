@@ -150,6 +150,33 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
 
     #endregion
 
+    #region Site URLs
+
+    /// <summary>
+    /// The page on AniList of an anime, a staff member, a character or a
+    /// studio, made from its ID. Episodes are synthesized from the anime and
+    /// have no page of their own, and AniList has no networks.
+    /// </summary>
+    /// <param name="entry">The entry, of the AniList source.</param>
+    /// <returns>The URL, or <see langword="null"/> for any other kind.</returns>
+    public string? GetSiteUrl(IMetadata entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        if (AnilistUtility.TryGetID(entry.ID, MetadataEntityType.Series, out var anilistAnimeID))
+            return AnilistUtility.AnimeUrl(anilistAnimeID);
+        if (AnilistUtility.TryGetID(entry.ID, MetadataEntityType.Creator, out var anilistStaffID))
+            return AnilistUtility.StaffUrl(anilistStaffID);
+        if (AnilistUtility.TryGetID(entry.ID, MetadataEntityType.Character, out var anilistCharacterID))
+            return AnilistUtility.CharacterUrl(anilistCharacterID);
+        if (AnilistUtility.TryGetID(entry.ID, MetadataEntityType.Studio, out var anilistStudioID))
+            return AnilistUtility.StudioUrl(anilistStudioID);
+
+        return null;
+    }
+
+    #endregion
+
     #region Pausing
 
     /// <summary>

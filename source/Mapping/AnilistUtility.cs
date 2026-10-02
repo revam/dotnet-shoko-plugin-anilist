@@ -35,6 +35,47 @@ public static partial class AnilistUtility
 
     #endregion
 
+    #region Site URLs
+
+    /// <summary>
+    /// The site every AniList page is under.
+    /// </summary>
+    public const string SiteUrl = "https://anilist.co";
+
+    /// <summary>
+    /// An anime's page on AniList.
+    /// </summary>
+    /// <param name="anilistAnimeID">The AniList anime ID.</param>
+    /// <returns>The URL.</returns>
+    public static string AnimeUrl(int anilistAnimeID)
+        => $"{SiteUrl}/anime/{FormatID(anilistAnimeID)}";
+
+    /// <summary>
+    /// A staff member's page on AniList.
+    /// </summary>
+    /// <param name="anilistStaffID">The AniList staff ID.</param>
+    /// <returns>The URL.</returns>
+    public static string StaffUrl(int anilistStaffID)
+        => $"{SiteUrl}/staff/{FormatID(anilistStaffID)}";
+
+    /// <summary>
+    /// A character's page on AniList.
+    /// </summary>
+    /// <param name="anilistCharacterID">The AniList character ID.</param>
+    /// <returns>The URL.</returns>
+    public static string CharacterUrl(int anilistCharacterID)
+        => $"{SiteUrl}/character/{FormatID(anilistCharacterID)}";
+
+    /// <summary>
+    /// A studio's page on AniList.
+    /// </summary>
+    /// <param name="anilistStudioID">The AniList studio ID.</param>
+    /// <returns>The URL.</returns>
+    public static string StudioUrl(int anilistStudioID)
+        => $"{SiteUrl}/studio/{FormatID(anilistStudioID)}";
+
+    #endregion
+
     #region Episode IDs
 
     /// <summary>

@@ -269,4 +269,34 @@ public class AnilistMetadataProviderTests
         Assert.Equal(AnimeType.Movie, page[1].Type);
         Assert.Contains("\"search\":\"one piece\"", harness.Http.Bodies[0], StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void GetSiteUrl_GivesAnAnimesPage_AndNothingElse()
+    {
+        using var harness = new ServiceHarness();
+        var provider = harness.Get<AnilistMetadataProvider>();
+
+        Assert.Equal("https://anilist.co/anime/21", provider.GetSiteUrl(new Entry(_series)));
+        Assert.Null(provider.GetSiteUrl(new Entry(AnilistUtility.EpisodeGuid(AnilistUtility.PackEpisodeID(21, 1)))));
+        Assert.Null(provider.GetSiteUrl(new Entry(new MetadataGuid(MetadataSource.TMDB, MetadataEntityType.Series, "21"))));
+    }
+
+    [Fact]
+    public void GetSiteUrl_GivesStaffCharactersAndStudiosTheirPages()
+    {
+        using var harness = new ServiceHarness();
+        var provider = harness.Get<AnilistMetadataProvider>();
+
+        Assert.Equal("https://anilist.co/staff/95", provider.GetSiteUrl(new Entry(AnilistUtility.Guid(MetadataEntityType.Creator, 95))));
+        Assert.Equal("https://anilist.co/character/40", provider.GetSiteUrl(new Entry(AnilistUtility.Guid(MetadataEntityType.Character, 40))));
+        Assert.Equal("https://anilist.co/studio/18", provider.GetSiteUrl(new Entry(AnilistUtility.Guid(MetadataEntityType.Studio, 18))));
+        Assert.Null(provider.GetSiteUrl(new Entry(AnilistUtility.Guid(MetadataEntityType.Network, 18))));
+        Assert.Null(provider.GetSiteUrl(new Entry(new MetadataGuid(MetadataSource.TMDB, MetadataEntityType.Creator, "95"))));
+    }
+
+    /// <summary>
+    /// An entry known only by its ID.
+    /// </summary>
+    /// <param name="ID">The entry's ID.</param>
+    private sealed record Entry(MetadataGuid ID) : IMetadata;
 }

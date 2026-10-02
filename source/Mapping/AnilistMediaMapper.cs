@@ -262,7 +262,7 @@ public static partial class AnilistMediaMapper
         var id = AnilistUtility.FormatID(media.ID);
         List<Resource> resources =
         [
-            new() { Type = ResourceType.Metadata, Name = "AniList", Url = $"https://anilist.co/anime/{id}", ID = id },
+            new() { Type = ResourceType.Metadata, Name = "AniList", Url = AnilistUtility.AnimeUrl(media.ID), ID = id },
         ];
         if (media.MalID is { } malID)
         {
@@ -940,7 +940,7 @@ public static partial class AnilistMediaMapper
             AlternativeNames = AlternativeNames(node, name),
             Gender = ParseGender(GetString(node["gender"])),
             BirthDay = ToFuzzyDate(ReadDateParts(node["dateOfBirth"])),
-            Resources = [new() { Type = ResourceType.Metadata, Name = "AniList", Url = GetString(node["siteUrl"]) is { Length: > 0 } url ? url : $"https://anilist.co/character/{id}", ID = id }],
+            Resources = [new() { Type = ResourceType.Metadata, Name = "AniList", Url = GetString(node["siteUrl"]) is { Length: > 0 } url ? url : AnilistUtility.CharacterUrl(characterID), ID = id }],
             DefaultImageResourceIDs = PortraitDefault(node),
         };
     }
@@ -960,7 +960,7 @@ public static partial class AnilistMediaMapper
             Gender = ParseGender(GetString(node["gender"])),
             BirthDay = ToFuzzyDate(ReadDateParts(node["dateOfBirth"])),
             DeathDay = ToFuzzyDate(ReadDateParts(node["dateOfDeath"])),
-            Resources = [new() { Type = ResourceType.Metadata, Name = "AniList", Url = GetString(node["siteUrl"]) is { Length: > 0 } url ? url : $"https://anilist.co/staff/{id}", ID = id }],
+            Resources = [new() { Type = ResourceType.Metadata, Name = "AniList", Url = GetString(node["siteUrl"]) is { Length: > 0 } url ? url : AnilistUtility.StaffUrl(creatorID), ID = id }],
             DefaultImageResourceIDs = PortraitDefault(node),
         };
     }
