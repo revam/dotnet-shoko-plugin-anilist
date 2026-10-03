@@ -274,24 +274,75 @@ public class AnilistMetadataProviderTests
     public void GetSiteUrl_GivesAnAnimesPage_AndNothingElse()
     {
         using var harness = new ServiceHarness();
-        var provider = harness.Get<AnilistMetadataProvider>();
+        IMetadataSeriesProvider provider = harness.Get<AnilistMetadataProvider>();
 
         Assert.Equal("https://anilist.co/anime/21", provider.GetSiteUrl(new Entry(_series)));
         Assert.Null(provider.GetSiteUrl(new Entry(AnilistUtility.EpisodeGuid(AnilistUtility.PackEpisodeID(21, 1)))));
+        Assert.Null(provider.GetSiteUrl(new Entry(AnilistUtility.Guid(MetadataEntityType.Creator, 95))));
         Assert.Null(provider.GetSiteUrl(new Entry(new MetadataGuid(MetadataSource.TMDB, MetadataEntityType.Series, "21"))));
     }
 
     [Fact]
-    public void GetSiteUrl_GivesStaffCharactersAndStudiosTheirPages()
+    public void GetSiteUrl_GivesStaffCharactersAndStudiosTheirPages_OnTheEntityProvider()
     {
         using var harness = new ServiceHarness();
-        var provider = harness.Get<AnilistMetadataProvider>();
+        IMetadataEntityProvider provider = harness.Get<AnilistMetadataProvider>();
 
         Assert.Equal("https://anilist.co/staff/95", provider.GetSiteUrl(new Entry(AnilistUtility.Guid(MetadataEntityType.Creator, 95))));
         Assert.Equal("https://anilist.co/character/40", provider.GetSiteUrl(new Entry(AnilistUtility.Guid(MetadataEntityType.Character, 40))));
         Assert.Equal("https://anilist.co/studio/18", provider.GetSiteUrl(new Entry(AnilistUtility.Guid(MetadataEntityType.Studio, 18))));
         Assert.Null(provider.GetSiteUrl(new Entry(AnilistUtility.Guid(MetadataEntityType.Network, 18))));
+        Assert.Null(provider.GetSiteUrl(new Entry(_series)));
         Assert.Null(provider.GetSiteUrl(new Entry(new MetadataGuid(MetadataSource.TMDB, MetadataEntityType.Creator, "95"))));
+    }
+
+    [Fact]
+    public async Task RefreshEntity_WritesAStaffMemberCharacterAndStudio_WithThePortraits()
+    {
+        using var harness = new ServiceHarness()
+            .Respond("""{ "data": { "Staff": { "id": 95, "name": { "full": "Mayumi Tanaka", "native": "田中真弓", "alternative": [] }, "image": { "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95.jpg" }, "gender": "Female" } } }""")
+            .Respond("""{ "data": { "Character": { "id": 40, "name": { "full": "Monkey D. Luffy", "alternative": ["Lucy"] }, "image": { "large": "https://s4.anilist.co/file/anilistcdn/character/large/b40.png" } } } }""")
+            .Respond("""{ "data": { "Studio": { "id": 18, "name": "Toei Animation", "isAnimationStudio": true } } }""");
+        var provider = harness.Get<AnilistMetadataProvider>();
+        var creatorID = AnilistUtility.Guid(MetadataEntityType.Creator, 95);
+        var characterID = AnilistUtility.Guid(MetadataEntityType.Character, 40);
+        var studioID = AnilistUtility.Guid(MetadataEntityType.Studio, 18);
+
+        Assert.True(await provider.RefreshEntity(creatorID, TestContext.Current.CancellationToken));
+        Assert.True(await provider.RefreshEntity(characterID, TestContext.Current.CancellationToken));
+        Assert.True(await provider.RefreshEntity(studioID, TestContext.Current.CancellationToken));
+
+        var creator = Assert.Single(harness.Stores.People.Creators);
+        Assert.Equal(("Mayumi Tanaka", "田中真弓", PersonGender.Female), (creator.Name, creator.OriginalName, creator.Gender));
+        Assert.Equal("Monkey D. Luffy", Assert.Single(harness.Stores.People.Characters).Name);
+        Assert.Equal("Toei Animation", harness.Stores.Studios.GetStudio(studioID)?.Name);
+        Assert.Equal("staff/large/n95.jpg", harness.Stores.Store.GetPortrait(creatorID));
+        Assert.Equal("character/large/b40.png", harness.Stores.Store.GetPortrait(characterID));
+        Assert.Contains("Staff(id: $id)", harness.Http.Bodies[0], StringComparison.Ordinal);
+        Assert.Contains("Character(id: $id)", harness.Http.Bodies[1], StringComparison.Ordinal);
+        Assert.Contains("Studio(id: $id)", harness.Http.Bodies[2], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RefreshEntity_IsFalse_ForAnEntryAnilistDoesNotHave_OrOneNotItsOwn()
+    {
+        using var harness = new ServiceHarness().Respond("""{ "errors": [ { "message": "Not Found.", "status": 404 } ], "data": { "Staff": null } }""");
+        var provider = harness.Get<AnilistMetadataProvider>();
+
+        Assert.False(await provider.RefreshEntity(AnilistUtility.Guid(MetadataEntityType.Creator, 95), TestContext.Current.CancellationToken));
+        Assert.False(await provider.RefreshEntity(AnilistUtility.Guid(MetadataEntityType.Network, 18), TestContext.Current.CancellationToken));
+        Assert.False(await provider.RefreshEntity(new MetadataGuid(MetadataSource.TMDB, MetadataEntityType.Creator, "95"), TestContext.Current.CancellationToken));
+
+        Assert.Single(harness.Http.Bodies);
+        Assert.Empty(harness.Stores.People.Creators);
+    }
+
+    [Fact]
+    public async Task RefreshEntity_Throws_WhenAnilistFails()
+    {
+        using var harness = new ServiceHarness().Respond("oops", HttpStatusCode.ServiceUnavailable);
+
+        await Assert.ThrowsAsync<AnilistUnavailableException>(() => harness.Get<AnilistMetadataProvider>().RefreshEntity(AnilistUtility.Guid(MetadataEntityType.Studio, 18), TestContext.Current.CancellationToken));
     }
 
     /// <summary>

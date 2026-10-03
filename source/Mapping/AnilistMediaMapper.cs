@@ -607,15 +607,11 @@ public static partial class AnilistMediaMapper
         {
             foreach (var edge in edges)
             {
-                if (edge?["node"] is not { } node || GetInt(node["id"]) is not { } id || id is 0)
-                    continue;
-
-                var studioID = AnilistUtility.Guid(MetadataEntityType.Studio, id);
-                if (read.Any(entry => entry.Studio.ID == studioID))
+                if (edge?["node"] is not { } node || ReadStudioNode(node) is not { } studio || read.Any(entry => entry.Studio.ID == studio.ID))
                     continue;
 
                 read.Add((
-                    new() { ID = studioID, Name = GetString(node["name"]) ?? string.Empty },
+                    studio,
                     // AniList sorts its studios into the ones that animate and
                     // the rest, which it calls producers.
                     GetBool(node["isAnimationStudio"]) is true ? StudioType.Animation : StudioType.Production,
@@ -630,6 +626,17 @@ public static partial class AnilistMediaMapper
             [.. ordered.Select(entry => new MetadataEntryStudioData { StudioID = entry.Studio.ID, Type = entry.Type })]
         );
     }
+
+    /// <summary>
+    /// One <c>Studio</c> node, as an anime's studios or AniList's own
+    /// <c>Studio</c> query hand it out.
+    /// </summary>
+    /// <param name="node">The <c>Studio</c> node.</param>
+    /// <returns>The studio to store, or <see langword="null"/> for a node without an ID.</returns>
+    public static MetadataStudioData? ReadStudioNode(JsonNode? node)
+        => GetInt(node?["id"]) is { } id and not 0
+            ? new() { ID = AnilistUtility.Guid(MetadataEntityType.Studio, id), Name = GetString(node!["name"]) ?? string.Empty }
+            : null;
 
     #endregion
 
@@ -821,12 +828,8 @@ public static partial class AnilistMediaMapper
 
         foreach (var edge in edges)
         {
-            if (edge?["node"] is not { } characterNode || GetInt(characterNode["id"]) is not { } characterID || characterID is 0)
+            if (edge is null || ReadCharacterNode(edge["node"], people) is not { } character)
                 continue;
-
-            var character = ReadCharacter(characterID, characterNode);
-            people.Characters[characterID] = character;
-            AddPortrait(people, character.ID, characterNode);
 
             var roleType = AnilistUtility.ParseCastRoleType(GetString(edge["role"]));
             var voiced = false;
@@ -834,12 +837,9 @@ public static partial class AnilistMediaMapper
             {
                 foreach (var voiceActorRole in voiceActorRoles)
                 {
-                    if (voiceActorRole?["voiceActor"] is not { } staffNode || GetInt(staffNode["id"]) is not { } creatorID || creatorID is 0)
+                    if (voiceActorRole?["voiceActor"] is not { } staffNode || ReadStaffNode(staffNode, people) is not { } creator)
                         continue;
 
-                    var creator = ReadCreator(creatorID, staffNode);
-                    people.Creators[creatorID] = creator;
-                    AddPortrait(people, creator.ID, staffNode);
                     if (people.Cast.Any(cast => cast.CharacterID == character.ID && cast.CreatorID == creator.ID))
                         continue;
 
@@ -886,12 +886,8 @@ public static partial class AnilistMediaMapper
 
         foreach (var edge in edges)
         {
-            if (edge?["node"] is not { } staffNode || GetInt(staffNode["id"]) is not { } creatorID || creatorID is 0)
+            if (edge is null || ReadStaffNode(edge["node"], people) is not { } creator)
                 continue;
-
-            var creator = ReadCreator(creatorID, staffNode);
-            people.Creators[creatorID] = creator;
-            AddPortrait(people, creator.ID, staffNode);
 
             var rawRole = GetString(edge["role"])?.Trim() ?? string.Empty;
             if (!people.SeenCrew.Add((creator.ID, rawRole)))
@@ -910,6 +906,45 @@ public static partial class AnilistMediaMapper
                 LanguageCode = language?.GetString() ?? (string.IsNullOrEmpty(originalLanguageCode) ? null : originalLanguageCode),
             });
         }
+    }
+
+    /// <summary>
+    /// Adds one <c>Character</c> node, and its portrait, to what was read so
+    /// far.
+    /// </summary>
+    /// <param name="node">The <c>Character</c> node, from an anime's characters or AniList's own <c>Character</c> query.</param>
+    /// <param name="people">Where the characters and portraits are gathered.</param>
+    /// <returns>The character, or <see langword="null"/> for a node without an ID.</returns>
+    public static MetadataCharacterData? ReadCharacterNode(JsonNode? node, AnilistPeople people)
+    {
+        ArgumentNullException.ThrowIfNull(people);
+
+        if (node is null || GetInt(node["id"]) is not { } characterID || characterID is 0)
+            return null;
+
+        var character = ReadCharacter(characterID, node);
+        people.Characters[characterID] = character;
+        AddPortrait(people, character.ID, node);
+        return character;
+    }
+
+    /// <summary>
+    /// Adds one <c>Staff</c> node, and its portrait, to what was read so far.
+    /// </summary>
+    /// <param name="node">The <c>Staff</c> node, from an anime's cast and staff or AniList's own <c>Staff</c> query.</param>
+    /// <param name="people">Where the people and portraits are gathered.</param>
+    /// <returns>The person, or <see langword="null"/> for a node without an ID.</returns>
+    public static MetadataCreatorData? ReadStaffNode(JsonNode? node, AnilistPeople people)
+    {
+        ArgumentNullException.ThrowIfNull(people);
+
+        if (node is null || GetInt(node["id"]) is not { } creatorID || creatorID is 0)
+            return null;
+
+        var creator = ReadCreator(creatorID, node);
+        people.Creators[creatorID] = creator;
+        AddPortrait(people, creator.ID, node);
+        return creator;
     }
 
     /// <summary>

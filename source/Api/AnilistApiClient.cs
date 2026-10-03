@@ -112,6 +112,16 @@ public class AnilistApiClient(HttpClient httpClient, AnilistRateLimiter rateLimi
         }
         """;
 
+    private const string StudioFragment = """
+        fragment StudioFields on Studio {
+          id
+          name
+          isAnimationStudio
+          favourites
+          siteUrl
+        }
+        """;
+
     private const string SchedulePage = """
         airingSchedule(notYetAired: false, perPage: 50, page: $schedulePage) {
           nodes { id episode airingAt }
@@ -167,7 +177,7 @@ public class AnilistApiClient(HttpClient httpClient, AnilistRateLimiter rateLimi
             studios(sort: [ID]) {
               edges {
                 isMain
-                node { id name isAnimationStudio favourites siteUrl }
+                node { ...StudioFields }
               }
             }
             tags { id name category description isAdult isGeneralSpoiler isMediaSpoiler rank }
@@ -183,6 +193,7 @@ public class AnilistApiClient(HttpClient httpClient, AnilistRateLimiter rateLimi
           }
         }
         {{MediaFragment}}
+        {{StudioFragment}}
         {{CharacterFragment}}
         {{StaffFragment}}
         """;
@@ -231,6 +242,27 @@ public class AnilistApiClient(HttpClient httpClient, AnilistRateLimiter rateLimi
           }
         }
         {{StaffFragment}}
+        """;
+
+    private static readonly string _staffMemberQuery = $$"""
+        query ($id: Int) {
+          Staff(id: $id) { ...StaffFields }
+        }
+        {{StaffFragment}}
+        """;
+
+    private static readonly string _characterQuery = $$"""
+        query ($id: Int) {
+          Character(id: $id) { ...CharacterFields }
+        }
+        {{CharacterFragment}}
+        """;
+
+    private static readonly string _studioQuery = $$"""
+        query ($id: Int) {
+          Studio(id: $id) { ...StudioFields }
+        }
+        {{StudioFragment}}
         """;
 
     #endregion
@@ -323,6 +355,39 @@ public class AnilistApiClient(HttpClient httpClient, AnilistRateLimiter rateLimi
     /// <exception cref="AnilistUnavailableException">AniList cannot be reached for now.</exception>
     public async Task<JsonNode?> GetStaffPageAsync(int anilistAnimeID, int page, CancellationToken cancellationToken = default)
         => (await ExecuteAndSelectAsync(_staffQuery, new() { ["id"] = anilistAnimeID, ["staffPage"] = page }, "Media", $"Get staff page {page} for anime {anilistAnimeID}", cancellationToken).ConfigureAwait(false))?["staff"];
+
+    /// <summary>
+    /// Fetches one staff member on their own.
+    /// </summary>
+    /// <param name="anilistStaffID">The AniList staff ID.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The <c>Staff</c> node, or <see langword="null"/> when AniList has no such person.</returns>
+    /// <exception cref="AnilistApiException">AniList answered with something unexpected.</exception>
+    /// <exception cref="AnilistUnavailableException">AniList cannot be reached for now.</exception>
+    public Task<JsonNode?> GetStaffAsync(int anilistStaffID, CancellationToken cancellationToken = default)
+        => ExecuteAndSelectAsync(_staffMemberQuery, new() { ["id"] = anilistStaffID }, "Staff", $"Get staff {anilistStaffID}", cancellationToken);
+
+    /// <summary>
+    /// Fetches one character on their own.
+    /// </summary>
+    /// <param name="anilistCharacterID">The AniList character ID.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The <c>Character</c> node, or <see langword="null"/> when AniList has no such character.</returns>
+    /// <exception cref="AnilistApiException">AniList answered with something unexpected.</exception>
+    /// <exception cref="AnilistUnavailableException">AniList cannot be reached for now.</exception>
+    public Task<JsonNode?> GetCharacterAsync(int anilistCharacterID, CancellationToken cancellationToken = default)
+        => ExecuteAndSelectAsync(_characterQuery, new() { ["id"] = anilistCharacterID }, "Character", $"Get character {anilistCharacterID}", cancellationToken);
+
+    /// <summary>
+    /// Fetches one studio on its own.
+    /// </summary>
+    /// <param name="anilistStudioID">The AniList studio ID.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The <c>Studio</c> node, or <see langword="null"/> when AniList has no such studio.</returns>
+    /// <exception cref="AnilistApiException">AniList answered with something unexpected.</exception>
+    /// <exception cref="AnilistUnavailableException">AniList cannot be reached for now.</exception>
+    public Task<JsonNode?> GetStudioAsync(int anilistStudioID, CancellationToken cancellationToken = default)
+        => ExecuteAndSelectAsync(_studioQuery, new() { ["id"] = anilistStudioID }, "Studio", $"Get studio {anilistStudioID}", cancellationToken);
 
     /// <summary>
     /// Searches for anime. Every filter is applied by AniList, so only the

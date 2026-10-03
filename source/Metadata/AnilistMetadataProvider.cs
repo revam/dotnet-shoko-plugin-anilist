@@ -37,8 +37,12 @@ namespace Shoko.Plugin.Anilist.Metadata;
 ///   limiter's breaker is tripped the provider says it is paused, and the
 ///   core holds its jobs back.
 /// </para>
+/// <para>
+///   It also refreshes AniList's staff, characters and studios one at a
+///   time, for the ones a refresh named without writing them.
+/// </para>
 /// </remarks>
-public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IMetadataAutoLinkingProvider, IMetadataImageProvider, IPausableMetadataProvider, IMetadataProvider<AnilistConfiguration>
+public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IMetadataAutoLinkingProvider, IMetadataImageProvider, IMetadataEntityProvider, IPausableMetadataProvider, IMetadataProvider<AnilistConfiguration>
 {
     private readonly AnilistRefreshService _refreshService;
 
@@ -153,18 +157,28 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
     #region Site URLs
 
     /// <summary>
-    /// The page on AniList of an anime, a staff member, a character or a
-    /// studio, made from its ID. Episodes are synthesized from the anime and
-    /// have no page of their own, and AniList has no networks.
+    /// The page on AniList of an anime, made from its ID. Episodes are
+    /// synthesized from the anime and have no page of their own.
     /// </summary>
     /// <param name="entry">The entry, of the AniList source.</param>
     /// <returns>The URL, or <see langword="null"/> for any other kind.</returns>
-    public string? GetSiteUrl(IMetadata entry)
+    string? IMetadataSeriesProvider.GetSiteUrl(IMetadata entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        if (AnilistUtility.TryGetID(entry.ID, MetadataEntityType.Series, out var anilistAnimeID))
-            return AnilistUtility.AnimeUrl(anilistAnimeID);
+        return AnilistUtility.TryGetID(entry.ID, MetadataEntityType.Series, out var anilistAnimeID) ? AnilistUtility.AnimeUrl(anilistAnimeID) : null;
+    }
+
+    /// <summary>
+    /// The page on AniList of a staff member, a character or a studio, made
+    /// from its ID. AniList has no networks.
+    /// </summary>
+    /// <param name="entry">The entry, of the AniList source.</param>
+    /// <returns>The URL, or <see langword="null"/> for any other kind.</returns>
+    string? IMetadataEntityProvider.GetSiteUrl(IMetadata entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
         if (AnilistUtility.TryGetID(entry.ID, MetadataEntityType.Creator, out var anilistStaffID))
             return AnilistUtility.StaffUrl(anilistStaffID);
         if (AnilistUtility.TryGetID(entry.ID, MetadataEntityType.Character, out var anilistCharacterID))
@@ -224,6 +238,39 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
 
         await _refreshService.RefreshAnime(anilistAnimeID, options, cancellationToken).ConfigureAwait(false);
     }
+
+    #endregion
+
+    #region Staff, Characters & Studios
+
+    /// <summary>
+    /// AniList's staff, characters and studios. It has no networks.
+    /// </summary>
+    public MetadataEntityScope EntityScope { get; } = MetadataEntityScope.ForSource(
+        MetadataSource.AniList,
+        MetadataEntityType.Creator,
+        MetadataEntityType.Character,
+        MetadataEntityType.Studio
+    );
+
+    /// <summary>
+    /// Never stale: an anime's refresh writes its staff, characters and
+    /// studios in full, so only the stubs it left are asked for.
+    /// </summary>
+    public TimeSpan? EntityStaleAfter => null;
+
+    /// <summary>
+    /// Fetches one staff member, character or studio from AniList and
+    /// writes it into the stores.
+    /// </summary>
+    /// <param name="entityID">The entry, of a kind in <see cref="EntityScope"/>.</param>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    /// <returns>Whether AniList had the entry.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="entityID"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AnilistApiException">AniList answered with something unexpected.</exception>
+    /// <exception cref="AnilistUnavailableException">AniList cannot be reached for now.</exception>
+    public Task<bool> RefreshEntity(MetadataGuid entityID, CancellationToken cancellationToken = default)
+        => _refreshService.RefreshEntity(entityID, cancellationToken);
 
     #endregion
 

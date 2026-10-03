@@ -123,6 +123,55 @@ public sealed class AnilistRefreshService(
         return true;
     }
 
+    /// <summary>
+    /// Fetches one staff member, character or studio on its own and writes
+    /// it into the stores, with its portrait.
+    /// </summary>
+    /// <param name="entityID">The creator, character or studio, on the AniList source.</param>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    /// <returns>Whether AniList had the entry; any other ID is not had.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="entityID"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AnilistApiException">AniList answered with something unexpected.</exception>
+    /// <exception cref="AnilistUnavailableException">AniList cannot be reached for now.</exception>
+    public async Task<bool> RefreshEntity(MetadataGuid entityID, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(entityID);
+
+        var people = new AnilistPeople();
+        if (AnilistUtility.TryGetID(entityID, MetadataEntityType.Creator, out var anilistStaffID))
+        {
+            var node = await apiClient.GetStaffAsync(anilistStaffID, cancellationToken).ConfigureAwait(false);
+            if (AnilistMediaMapper.ReadStaffNode(node, people) is not { } creator)
+                return false;
+
+            store.People.SaveCreators([creator]);
+        }
+        else if (AnilistUtility.TryGetID(entityID, MetadataEntityType.Character, out var anilistCharacterID))
+        {
+            var node = await apiClient.GetCharacterAsync(anilistCharacterID, cancellationToken).ConfigureAwait(false);
+            if (AnilistMediaMapper.ReadCharacterNode(node, people) is not { } character)
+                return false;
+
+            store.People.SaveCharacters([character]);
+        }
+        else if (AnilistUtility.TryGetID(entityID, MetadataEntityType.Studio, out var anilistStudioID))
+        {
+            var node = await apiClient.GetStudioAsync(anilistStudioID, cancellationToken).ConfigureAwait(false);
+            if (AnilistMediaMapper.ReadStudioNode(node) is not { } studio)
+                return false;
+
+            store.Studios.SaveStudios([studio]);
+        }
+        else
+        {
+            return false;
+        }
+
+        store.SavePortraits(people.Portraits);
+        logger.LogDebug("Refreshed AniList entry {EntityID}.", entityID);
+        return true;
+    }
+
     private async Task<Dictionary<int, AnilistScheduleEntry>> ReadSchedule(int anilistAnimeID, JsonNode media, CancellationToken cancellationToken)
     {
         var schedule = new Dictionary<int, AnilistScheduleEntry>();

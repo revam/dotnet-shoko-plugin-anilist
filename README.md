@@ -40,6 +40,10 @@ it as `MetadataSource.AniList`, a C# 14 extension member.
   count and duration, its own recommendations before the merge, the airing
   schedule's IDs, and where the cover, banner and portraits are. It forgets
   them when the core purges the anime.
+- Refreshes one staff member, character or studio on its own when the core
+  asks, which it does only for a stub: an anime's refresh writes them in full,
+  so they never go stale on their own. They are the provider's `creator`,
+  `character` and `studio` kinds, and their AniList pages are answered there.
 - Hands the core its images (a cover and a banner per anime, a portrait per
   character or person) and registers AniList's default template URL. Which of
   them are downloaded is set in the core's image settings for the source.
