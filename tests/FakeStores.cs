@@ -72,6 +72,10 @@ internal sealed class FakeStudio(MetadataStudioData data, StudioType type) : ISt
 
     public string? OriginalName => data.OriginalName;
 
+    public string? CountryOfOrigin => data.CountryOfOrigin;
+
+    public DateTime? LastRefreshedAt => null;
+
     public StudioType StudioType { get; } = type;
 
     public IEnumerable<IMovie> MovieWorks => [];
@@ -124,6 +128,8 @@ internal sealed class FakeStudioStore : IMetadataStudioStore
 
     public void SetNetworks(MetadataGuid entry, IEnumerable<MetadataGuid> networks) { }
 
+    public void SetNetworks(MetadataGuid entry, IEnumerable<MetadataEntryNetworkData> networks) { }
+
     public int RemoveNetworks(MetadataGuid entry) => 0;
 
     public IReadOnlyList<MetadataGuid> RemoveOrphaned(MetadataSource source, DateTime orphanedBefore) => [];
@@ -155,6 +161,10 @@ internal sealed class FakeCharacter(MetadataCharacterData data) : ICharacter
 
     public DateTime LastUpdatedAt => DateTime.UnixEpoch;
 
+    public DateTime CreatedAt => DateTime.UnixEpoch;
+
+    public DateTime? LastRefreshedAt => null;
+
     public IReadOnlyList<Resource> Resources => data.Resources;
 
     public IEnumerable<ICast<IEpisode>> EpisodeCastRoles => [];
@@ -184,6 +194,10 @@ internal sealed class FakeCreator(MetadataCreatorData data) : ICreator
 
     public FuzzyDateOnly? DeathDay => data.DeathDay;
 
+    public string? PlaceOfBirth => data.PlaceOfBirth;
+
+    public bool IsRestricted => data.IsRestricted;
+
     public IText? DefaultOverview => data.Overview is { } overview ? new TextStub { Source = data.ID.Source, Language = TitleLanguage.English, LanguageCode = "en", Value = overview } : null;
 
     public IText? PreferredOverview => DefaultOverview;
@@ -191,6 +205,10 @@ internal sealed class FakeCreator(MetadataCreatorData data) : ICreator
     public IReadOnlyList<IText> Overviews => DefaultOverview is { } overview ? [overview] : [];
 
     public DateTime LastUpdatedAt => DateTime.UnixEpoch;
+
+    public DateTime CreatedAt => DateTime.UnixEpoch;
+
+    public DateTime? LastRefreshedAt => null;
 
     public IReadOnlyList<Resource> Resources => data.Resources;
 
@@ -385,6 +403,8 @@ internal sealed class FakeSuggestion(MetadataGuid entry, MetadataSuggestionData 
     public int? Order => data.Order;
 
     public double? ApprovalRating => data.ApprovalRating;
+
+    public int? ApprovalVotes => data.ApprovalVotes;
 
     public int? Votes => data.Votes;
 
