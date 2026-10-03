@@ -9,6 +9,22 @@
   ],
   "releases": [
     {
+      "version": "1.1.0",
+      "tag": "v1.1.0",
+      "released_at": "2026-10-03T16:55:04.2090268Z",
+      "channel": "Stable",
+      "release_notes": "The plugin is now called AniList, and it fills in more of what Shoko shows. Anime, staff, characters and studios link to their pages on AniList. Staff, characters and studios can also be refreshed on their own when Shoko asks for one, for example a person who so far only appears as a name in a credit; an anime\u0027s refresh still writes them in full. The plugin also has its own icon and thumbnail now.\n\nRebuilt against the abstractions \u00606.0.0-alpha.98\u0060 release.\n\nRequires Shoko Server with abstractions \u00606.0.0-alpha.98\u0060.",
+      "dependencies": [],
+      "archives": [
+        {
+          "runtime": "any",
+          "abstraction": "6.0.0",
+          "url": "https://github.com/revam/dotnet-shoko-plugin-anilist/releases/download/v1.1.0/AniListMetadata-v1.1.0-any.zip",
+          "checksum": "sha256:3ca8fce40795d0efdc5becac55107bd29338fee1bcffdab6cb0a8bb4893a085b"
+        }
+      ]
+    },
+    {
       "version": "1.0.0",
       "tag": "v1.0.0",
       "released_at": "2026-09-30T16:24:07.3584864Z",
