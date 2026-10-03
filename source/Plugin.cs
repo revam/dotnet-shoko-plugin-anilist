@@ -26,6 +26,17 @@ namespace Shoko.Plugin.Anilist;
 public class Plugin : IPlugin, IPluginServiceRegistration
 {
     /// <summary>
+    /// The embedded resource of the plugin's thumbnail.
+    /// </summary>
+    internal const string ThumbnailResourceName = "Shoko.Plugin.Anilist.Assets.thumbnail.svg";
+
+    /// <summary>
+    /// The embedded resource of the plugin's icon, which is the source's icon
+    /// too.
+    /// </summary>
+    internal const string IconResourceName = "Shoko.Plugin.Anilist.Assets.icon.svg";
+
+    /// <summary>
     /// The plugin's ID, the same as the one in <c>manifest.json</c>.
     /// </summary>
     public static readonly Guid PluginID = new("e73c1e23-111a-4cf0-bab8-054b738c5101");
@@ -42,6 +53,12 @@ public class Plugin : IPlugin, IPluginServiceRegistration
         provider contract: titles, overviews, images, cast and crew, studios, tags and
         genres, relations, recommendations and broadcast times.
     """;
+
+    /// <inheritdoc/>
+    public string? EmbeddedThumbnailResourceName => ThumbnailResourceName;
+
+    /// <inheritdoc/>
+    public string? EmbeddedIconResourceName => IconResourceName;
 
     /// <inheritdoc/>
     public static void RegisterServices(IServiceCollection serviceCollection, IApplicationPaths applicationPaths)

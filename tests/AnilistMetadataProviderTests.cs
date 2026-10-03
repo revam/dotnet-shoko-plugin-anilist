@@ -41,6 +41,14 @@ public class AnilistMetadataProviderTests
     }
 
     [Fact]
+    public void Provider_SourceIconIsThePluginIcon()
+    {
+        using var harness = new ServiceHarness();
+
+        Assert.Equal(new Plugin().EmbeddedIconResourceName, harness.Get<AnilistMetadataProvider>().EmbeddedIconResourceName);
+    }
+
+    [Fact]
     public async Task RefreshSeries_WritesTheAnime_AndIgnoresAnythingElse()
     {
         using var harness = new ServiceHarness().Respond(Fixture.Read("media-21.json"));

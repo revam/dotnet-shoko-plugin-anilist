@@ -109,6 +109,9 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
     /// <inheritdoc/>
     public MetadataSource Source => MetadataSource.AniList;
 
+    /// <inheritdoc/>
+    public string? EmbeddedIconResourceName => Plugin.IconResourceName;
+
     /// <summary>
     /// Off: installing the plugin does not on its own start linking anime.
     /// </summary>
