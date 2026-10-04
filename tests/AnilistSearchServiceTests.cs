@@ -224,9 +224,11 @@ public class AnilistSearchServiceTests
     public async Task FindAutoMatches_SearchesTheYearOfTheRegularBroadcast()
     {
         using var harness = new ServiceHarness();
-        var (_, anime, _) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2018, 12, 20));
+        var (_, anime, episodes) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2018, 12, 20));
         anime.SetupGet(a => a.Titles).Returns([new TitleStub { Source = MetadataSource.AniDB, Language = TitleLanguage.Romaji, LanguageCode = "x-jat", Value = "Early Showing", Type = TitleType.Main }]);
-        anime.SetupGet(a => a.RegularAirDate).Returns(new PartialDateOnly(new DateOnly(2019, 1, 10)));
+        var first = Mock.Get(episodes[0]);
+        first.SetupGet(e => e.AirDate).Returns(new DateOnly(2019, 1, 10));
+        first.SetupGet(e => e.EarlyAirDate).Returns(new DateOnly(2018, 12, 20));
         harness.Respond(EmptyPage).Respond(EmptyPage);
 
         await harness.Get<AnilistSearchService>().FindAutoMatches(anime.Object, TestContext.Current.CancellationToken);

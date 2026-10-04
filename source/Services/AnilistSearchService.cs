@@ -221,7 +221,7 @@ public sealed partial class AnilistSearchService
 
         // The regular broadcast is what AniList dates, the anime or its first
         // episodes perhaps being dated by an early showing.
-        var airDate = anime.RegularAirDate?.ToDateTime() ?? secondEpisode?.AirDate?.ToDateTime(TimeOnly.MinValue) ?? aired;
+        var airDate = RegularStartOf(anime)?.ToDateTime() ?? secondEpisode?.AirDate?.ToDateTime(TimeOnly.MinValue) ?? aired;
 
         var allTitles = anime.Titles.Where(title => title.Type is TitleType.Main or TitleType.Official).ToList();
         if (allTitles.Count is 0)
@@ -545,6 +545,18 @@ public sealed partial class AnilistSearchService
             candidates.Add(result);
         }
     }
+
+    /// <summary>
+    /// When the anime's regular broadcast started: its first normal episode's
+    /// <see cref="IEpisode.AirDate"/> when that episode was shown early, and
+    /// the anime's own date otherwise.
+    /// </summary>
+    /// <param name="anime">The anime.</param>
+    /// <returns>The date, or <c>null</c> when neither is dated.</returns>
+    private static PartialDateOnly? RegularStartOf(IAnidbAnime anime)
+        => anime.Episodes.FirstOrDefault(episode => episode is { Type: EpisodeType.Episode, EpisodeNumber: 1 }) is { EarlyAirDate: not null, AirDate: { } regular }
+            ? new PartialDateOnly(regular)
+            : anime.AirDate;
 
     private bool MayAutoLinkRestricted()
     {
