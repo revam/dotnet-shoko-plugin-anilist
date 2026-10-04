@@ -33,6 +33,13 @@ public class AnilistSearchServiceTests
 
     private static string EmptyPage => SearchPage();
 
+    // Only the anime is dated, so no candidate's episodes are fetched to line them up.
+    private static void Undate(IEnumerable<IAnidbEpisode> episodes)
+    {
+        foreach (var episode in episodes)
+            Mock.Get(episode).SetupGet(e => e.AirDate).Returns((DateOnly?)null);
+    }
+
     private static bool HasName(MetadataSearchResult candidate, string name)
         => new[] { candidate.Title, candidate.OriginalTitle }.Concat(candidate.AlternateTitles).Contains(name, StringComparer.OrdinalIgnoreCase);
 
@@ -40,7 +47,8 @@ public class AnilistSearchServiceTests
     public async Task FindAutoMatches_TakesWhatTheEngineTakes_AndKeepsTheRestWithWhy()
     {
         using var harness = new ServiceHarness();
-        var (_, anime, _) = harness.AddShokoSeries(1, 100, 26, new DateOnly(2019, 4, 6));
+        var (_, anime, episodes) = harness.AddShokoSeries(1, 100, 26, new DateOnly(2019, 4, 6));
+        Undate(episodes);
         anime.SetupGet(a => a.Titles).Returns([new TitleStub { Source = MetadataSource.AniDB, Language = TitleLanguage.Romaji, LanguageCode = "x-jat", Value = "Kimetsu no Yaiba", Type = TitleType.Main }]);
         var calls = harness.JudgeSeries((candidate, options) => HasName(candidate, options!.Query!) ? MatchRating.DateAndTitleMatches : MatchRating.None);
         harness
@@ -73,7 +81,8 @@ public class AnilistSearchServiceTests
     public async Task FindAutoMatches_TriesTheNextTitle_WhenTheEngineTakesNothing()
     {
         using var harness = new ServiceHarness();
-        var (_, anime, _) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
+        var (_, anime, episodes) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
+        Undate(episodes);
         anime.SetupGet(a => a.Titles).Returns(
         [
             new TitleStub { Source = MetadataSource.AniDB, Language = TitleLanguage.Romaji, LanguageCode = "x-jat", Value = "Romaji Title", Type = TitleType.Main },
@@ -98,7 +107,8 @@ public class AnilistSearchServiceTests
     public async Task FindAutoMatches_KeepsAnAnimeAsTheQueryThatRatedItBest_AndListsTheRestBestFirst()
     {
         using var harness = new ServiceHarness();
-        var (_, anime, _) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
+        var (_, anime, episodes) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
+        Undate(episodes);
         anime.SetupGet(a => a.Titles).Returns(
         [
             new TitleStub { Source = MetadataSource.AniDB, Language = TitleLanguage.Romaji, LanguageCode = "x-jat", Value = "Romaji Title", Type = TitleType.Main },
@@ -132,7 +142,8 @@ public class AnilistSearchServiceTests
     public async Task FindAutoMatches_PrefersItsOwnDatedMatchOverThePrequelsTitle()
     {
         using var harness = new ServiceHarness();
-        var (_, anime, _) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2026, 7, 17));
+        var (_, anime, episodes) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2026, 7, 17));
+        Undate(episodes);
         anime.SetupGet(a => a.Titles).Returns(
         [
             new TitleStub { Source = MetadataSource.AniDB, Language = TitleLanguage.Romaji, LanguageCode = "x-jat", Value = "Wakagimi (2026)", Type = TitleType.Main },
@@ -258,7 +269,8 @@ public class AnilistSearchServiceTests
     public async Task FindAutoMatches_LeavesMusicVideosOutOfTheCandidates()
     {
         using var harness = new ServiceHarness();
-        var (_, anime, _) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
+        var (_, anime, episodes) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
+        Undate(episodes);
         anime.SetupGet(a => a.Titles).Returns([new TitleStub { Source = MetadataSource.AniDB, Language = TitleLanguage.Romaji, LanguageCode = "x-jat", Value = "Song", Type = TitleType.Main }]);
         var calls = harness.JudgeSeries((_, _) => MatchRating.TitleMatches);
         harness.Respond(SearchPage((1, "Song", null, 2019, 1, "MUSIC"), (2, "Song", null, 2019, 12, "TV"))).Respond(EmptyPage);
@@ -272,9 +284,7 @@ public class AnilistSearchServiceTests
     public async Task FindAutoMatches_JudgesTheBestCandidatesAgainWithTheirEpisodes()
     {
         using var harness = new ServiceHarness();
-        var (_, anime, episodes) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
-        foreach (var episode in episodes)
-            Mock.Get(episode).SetupGet(e => e.RegularAirDate).Returns(episode.AirDate);
+        var (_, anime, _) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
         anime.SetupGet(a => a.Titles).Returns([new TitleStub { Source = MetadataSource.AniDB, Language = TitleLanguage.Romaji, LanguageCode = "x-jat", Value = "Split Cour", Type = TitleType.Main }]);
         var calls = harness.JudgeSeries((candidate, _) => candidate.Title switch
         {
@@ -321,7 +331,8 @@ public class AnilistSearchServiceTests
     public async Task FindAutoMatches_FetchesNoEpisodes_ForAnAnimeWithNoDatedEpisode()
     {
         using var harness = new ServiceHarness();
-        var (_, anime, _) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
+        var (_, anime, episodes) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
+        Undate(episodes);
         anime.SetupGet(a => a.Titles).Returns([new TitleStub { Source = MetadataSource.AniDB, Language = TitleLanguage.Romaji, LanguageCode = "x-jat", Value = "Undated", Type = TitleType.Main }]);
         var calls = harness.JudgeSeries((_, _) => MatchRating.DateAndTitleMatches);
         harness.Respond(SearchPage((101, "Undated", null, 2019, 12, "TV"))).Respond(EmptyPage);
@@ -336,9 +347,7 @@ public class AnilistSearchServiceTests
     public async Task FindAutoMatches_FetchesEachCandidatesEpisodesOnce_AcrossTitles()
     {
         using var harness = new ServiceHarness();
-        var (_, anime, episodes) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
-        foreach (var episode in episodes)
-            Mock.Get(episode).SetupGet(e => e.RegularAirDate).Returns(episode.AirDate);
+        var (_, anime, _) = harness.AddShokoSeries(1, 100, 12, new DateOnly(2019, 4, 6));
         anime.SetupGet(a => a.Titles).Returns(
         [
             new TitleStub { Source = MetadataSource.AniDB, Language = TitleLanguage.Romaji, LanguageCode = "x-jat", Value = "Romaji Title", Type = TitleType.Main },

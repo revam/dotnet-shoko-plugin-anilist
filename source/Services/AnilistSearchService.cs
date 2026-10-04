@@ -212,7 +212,7 @@ public sealed partial class AnilistSearchService
             .OrderBy(episode => episode.EpisodeNumber)
             .Take(2)
             .LastOrDefault();
-        var storedAirDate = anime.AirDate?.ToDateTime() ?? secondEpisode?.AirDate?.ToDateTime(TimeOnly.MinValue);
+        var storedAirDate = anime.AirDate?.ToDateTime() ?? (secondEpisode?.EarlyAirDate ?? secondEpisode?.AirDate)?.ToDateTime(TimeOnly.MinValue);
 
         // Nothing to search for when it has not aired and is not about to.
         var now = DateTime.Now;
@@ -221,7 +221,7 @@ public sealed partial class AnilistSearchService
 
         // The regular broadcast is what AniList dates, the anime or its first
         // episodes perhaps being dated by an early showing.
-        var airDate = anime.RegularAirDate?.ToDateTime() ?? secondEpisode?.RegularAirDate?.ToDateTime(TimeOnly.MinValue) ?? aired;
+        var airDate = anime.RegularAirDate?.ToDateTime() ?? secondEpisode?.AirDate?.ToDateTime(TimeOnly.MinValue) ?? aired;
 
         var allTitles = anime.Titles.Where(title => title.Type is TitleType.Main or TitleType.Official).ToList();
         if (allTitles.Count is 0)
@@ -454,8 +454,8 @@ public sealed partial class AnilistSearchService
         }
 
         var dates = anime.Episodes
-            .Where(episode => episode.Type is EpisodeType.Episode && episode.RegularAirDate is not null)
-            .Select(episode => episode.RegularAirDate!.Value)
+            .Where(episode => episode.Type is EpisodeType.Episode && episode.AirDate is not null)
+            .Select(episode => episode.AirDate!.Value)
             .ToList();
         if (wanted.Count is 0 || dates.Count is 0)
             return;
