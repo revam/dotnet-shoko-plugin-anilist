@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json.Nodes;
 using Moq;
 using Shoko.Abstractions.Metadata;
 using Shoko.Abstractions.Metadata.Enums;
@@ -20,6 +21,29 @@ public class AnilistRefreshServiceTests
     private static readonly string _media = Fixture.Read("media-21.json");
 
     private static readonly MetadataGuid _series = AnilistUtility.SeriesGuid(21);
+
+    private const string CharactersPage2 = """
+        { "data": { "Media": { "characters": {
+          "pageInfo": { "currentPage": 2, "hasNextPage": false },
+          "edges": [ { "role": "SUPPORTING", "voiceActorRoles": [], "node": { "id": 42, "name": { "full": "Roronoa Zoro" } } } ]
+        } } } }
+        """;
+
+    private const string StaffPage2 = """
+        { "data": { "Media": { "staff": {
+          "pageInfo": { "currentPage": 2, "hasNextPage": false },
+          "edges": [ { "role": "Director", "node": { "id": 97000, "name": { "full": "Konosuke Uda" }, "languageV2": "Japanese" } } ]
+        } } } }
+        """;
+
+    // The anime with a second page of characters and of staff.
+    private static string MediaWithMorePeople()
+    {
+        var node = JsonNode.Parse(_media)!;
+        node["data"]!["Media"]!["characters"]!["pageInfo"]!["hasNextPage"] = true;
+        node["data"]!["Media"]!["staff"]!["pageInfo"]!["hasNextPage"] = true;
+        return node.ToJsonString();
+    }
 
     private static AnilistConfiguration Unthrottled() => new()
     {
@@ -170,6 +194,71 @@ public class AnilistRefreshServiceTests
 
         Assert.Equal(3, harness.Stores.People.Cast[_series].Count);
         Assert.Equal(2, harness.Stores.People.Crew[_series].Count);
+    }
+
+    [Fact]
+    public async Task RefreshAnime_WithTheKindsOff_AsksForNoMoreCastOrCrew_AndWritesTheFirstPages()
+    {
+        using var harness = new ServiceHarness(Unthrottled()).Respond(MediaWithMorePeople());
+
+        await harness.Get<AnilistRefreshService>().RefreshAnime(21, new(), TestContext.Current.CancellationToken);
+
+        Assert.Single(harness.Http.Bodies);
+        Assert.Equal(3, harness.Stores.People.Cast[_series].Count);
+        Assert.Equal(2, harness.Stores.People.Crew[_series].Count);
+    }
+
+    [Fact]
+    public async Task RefreshAnime_WithTheKindsOff_KeepsTheStoredCastAndCrew_OverTheFirstPages()
+    {
+        using var harness = new ServiceHarness(Unthrottled()).Respond(MediaWithMorePeople());
+        var creator = new MetadataGuid(MetadataSource.AniList, MetadataEntityType.Creator, "1");
+        harness.Stores.People.Cast[_series] = [new() { CharacterID = new MetadataGuid(MetadataSource.AniList, MetadataEntityType.Character, "1"), CreatorID = creator, Name = "Stored" }];
+        harness.Stores.People.Crew[_series] = [new() { CreatorID = creator, Name = "Director" }];
+
+        await harness.Get<AnilistRefreshService>().RefreshAnime(21, new(), TestContext.Current.CancellationToken);
+
+        Assert.Single(harness.Http.Bodies);
+        Assert.Equal("Stored", Assert.Single(harness.Stores.People.Cast[_series]).Name);
+        Assert.Equal("Director", Assert.Single(harness.Stores.People.Crew[_series]).Name);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task RefreshAnime_PagesThroughEachList_OnlyWhileItsKindIsOn(bool characters, bool staff)
+    {
+        using var harness = new ServiceHarness(Unthrottled()).Respond(MediaWithMorePeople());
+        var kinds = new List<MetadataEntityType>();
+        if (characters)
+            kinds.Add(MetadataEntityType.Character);
+        if (staff)
+            kinds.Add(MetadataEntityType.Creator);
+        harness.EnableKinds([.. kinds]);
+        if (characters)
+            harness.Respond(CharactersPage2);
+        if (staff)
+            harness.Respond(StaffPage2);
+
+        await harness.Get<AnilistRefreshService>().RefreshAnime(21, new(), TestContext.Current.CancellationToken);
+
+        Assert.Equal(1 + (characters ? 1 : 0) + (staff ? 1 : 0), harness.Http.Bodies.Count);
+        Assert.Equal(characters, harness.Http.Bodies.Any(body => body.Contains("\"characterPage\":2", StringComparison.Ordinal)));
+        Assert.Equal(staff, harness.Http.Bodies.Any(body => body.Contains("\"staffPage\":2", StringComparison.Ordinal)));
+        Assert.Equal(characters ? 4 : 3, harness.Stores.People.Cast[_series].Count);
+        Assert.Equal(staff ? 3 : 2, harness.Stores.People.Crew[_series].Count);
+    }
+
+    [Fact]
+    public async Task QuickRefresh_AsksForNoMoreCastOrCrew_EvenWithTheKindsOn()
+    {
+        using var harness = new ServiceHarness(Unthrottled()).EnableKinds(MetadataEntityType.Character, MetadataEntityType.Creator).Respond(MediaWithMorePeople());
+
+        await harness.Get<AnilistRefreshService>().RefreshAnime(21, new() { QuickRefresh = true }, TestContext.Current.CancellationToken);
+
+        Assert.Single(harness.Http.Bodies);
+        Assert.False(harness.Stores.People.Cast.ContainsKey(_series));
     }
 
     [Fact]

@@ -30,22 +30,31 @@ it as `MetadataSource.AniList`, a C# 14 extension member.
   AniList lists no visual novels and flags no eroge, so the adult flag is the
   only signal it gives. AniDB's source tags carry that fact instead.
 - Writes tags and genres (genres as `TagKind.Genre`), studios, and cast and
-  crew (on every refresh but a quick one) with genders, birthdays (whatever parts AniList knows, so a birthday without
-  a year is kept), alternative names, role notes and dub groups,
-  relations to other anime, and recommendations as suggestions. AniList serves
-  one recommendation from both sides, so what the other stored anime recommend
-  naming this one is merged in when an anime is written.
+  crew (on every refresh but a quick one, see below) with genders, birthdays
+  (whatever parts AniList knows, so a birthday without a year is kept),
+  alternative names, role notes and dub groups, relations to other anime, and
+  recommendations as suggestions. AniList serves one recommendation from both
+  sides, so what the other stored anime recommend naming this one is merged in
+  when an anime is written.
 - Keeps what only AniList has in its own database (see
   [Its own database](#its-own-database)): the season and season year, the licensed flag, the mean score, AniList's episode
   count and duration, its own recommendations before the merge, the airing
   schedule's IDs, and where the cover, banner and portraits are. It forgets
   them when the core purges the anime.
+- Reads the cast and crew past their first page only while the provider's
+  kinds are on: the characters, with the people voicing them, for
+  `character`, and the staff for `creator`. AniList serves them 25 to a
+  request, so a long show costs many requests, and both kinds start off. The
+  first page of each comes with the anime at no extra request. A list that
+  fits on it is written as always; a longer one is written only for an anime
+  with no credits stored, so a new anime still shows its leading cast and
+  crew, and the credits already stored are otherwise left as they are.
 - Refreshes one staff member, character or studio on its own when the core
-  asks, which it does only for a stub: an anime's refresh writes them in full,
-  so they never go stale on their own. They are the provider's `creator`,
-  `character` and `studio` kinds, on by default, and their AniList pages are
-  answered there. A kind turned off only stops these lone fetches; the
-  anime's refresh writes them whatever is turned on.
+  asks, which it does only for a stub: an anime's refresh writes the ones it
+  reads in full, so they never go stale on their own. They are the
+  provider's `creator`, `character` and `studio` kinds, and their AniList
+  pages are answered there. `studio` starts on: the studios come with the
+  anime, so a refresh writes them whatever is turned on.
 - Hands the core its images (a cover and a banner per anime, a portrait per
   character or person) and registers AniList's default template URL. Which of
   them are downloaded is set in the core's image settings for the source.
@@ -165,8 +174,9 @@ a server's own database, and never edit one a release has shipped.
 Whether the provider answers at all, and whether it links on its own, belongs to
 `IMetadataProviderManager`, not to these settings, and which images are
 downloaded to the core's image settings for the `anilist` source. There is no
-switch here for staff, characters or studios: every refresh but a quick one
-writes them, and the provider's kinds decide whether one is fetched on its
+switch here for staff, characters or studios: the provider's `creator` and
+`character` kinds, off by default, decide whether a refresh reads the cast and
+crew past their first page, and with `studio` whether one is fetched on its
 own.
 
 ## Building

@@ -124,6 +124,20 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
     public bool AutoLinkRestrictedByDefault => true;
 
     /// <summary>
+    /// Every kind but <c>creator</c> and <c>character</c>: the cast and crew
+    /// past their first page cost a request per 25 on AniList, so they are
+    /// opt-in. Studios come with the anime and stay on.
+    /// </summary>
+    public IReadOnlySet<MetadataEntityType> DefaultEnabledKinds { get; } = FrozenSet.ToFrozenSet(
+        [
+            MetadataEntityType.Series,
+            MetadataEntityType.Season,
+            MetadataEntityType.Episode,
+            MetadataEntityType.Studio,
+        ]
+    );
+
+    /// <summary>
     /// Four of each job at once. Every request is paced by the rate limiter
     /// whatever runs it, so this only keeps a library-wide refresh from
     /// crowding out the rest of the queue.
@@ -257,8 +271,8 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
     );
 
     /// <summary>
-    /// Never stale: an anime's refresh writes its staff, characters and
-    /// studios in full, so only the stubs it left are asked for.
+    /// Never stale: an anime's refresh writes the staff, characters and
+    /// studios it reads in full, so only the stubs it left are asked for.
     /// </summary>
     public TimeSpan? EntityStaleAfter => null;
 

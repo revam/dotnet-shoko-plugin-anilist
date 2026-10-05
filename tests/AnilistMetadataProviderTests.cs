@@ -41,6 +41,18 @@ public class AnilistMetadataProviderTests
     }
 
     [Fact]
+    public void Provider_LeavesTheCastAndCrewOffByDefault_AndEverythingElseItServesOn()
+    {
+        using var harness = new ServiceHarness();
+        var provider = harness.Get<AnilistMetadataProvider>();
+        var served = provider.EntityScope.Select(pair => pair.EntityType)
+            .Concat([MetadataEntityType.Series, MetadataEntityType.Season, MetadataEntityType.Episode])
+            .Except([MetadataEntityType.Creator, MetadataEntityType.Character]);
+
+        Assert.Equal(served.Select(kind => kind.Value).Order(StringComparer.Ordinal), ((IMetadataProvider)provider).DefaultEnabledKinds.Select(kind => kind.Value).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
     public void Provider_SourceIconIsThePluginIcon()
     {
         using var harness = new ServiceHarness();

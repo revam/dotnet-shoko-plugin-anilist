@@ -115,6 +115,17 @@ internal sealed class ServiceHarness : IDisposable
     public T Get<T>() where T : notnull => _services.GetRequiredService<T>();
 
     /// <summary>
+    /// Has the core say the AniList provider is on for these kinds only.
+    /// </summary>
+    public ServiceHarness EnableKinds(params MetadataEntityType[] kinds)
+    {
+        var info = (MetadataProviderInfo)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(MetadataProviderInfo));
+        info.EnabledEntityTypes = kinds.ToHashSet();
+        ProviderManager.Setup(manager => manager.GetProviderInfo(typeof(AnilistMetadataProvider))).Returns(info);
+        return this;
+    }
+
+    /// <summary>
     /// Queues AniList's answer to one request.
     /// </summary>
     public ServiceHarness Respond(string body, HttpStatusCode statusCode = HttpStatusCode.OK)

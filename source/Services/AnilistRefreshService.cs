@@ -8,10 +8,12 @@ using Microsoft.Extensions.Logging;
 using Shoko.Abstractions.Config;
 using Shoko.Abstractions.Metadata;
 using Shoko.Abstractions.Metadata.Providers;
+using Shoko.Abstractions.Metadata.Services;
 using Shoko.Abstractions.Metadata.Storage;
 using Shoko.Plugin.Anilist.Airing;
 using Shoko.Plugin.Anilist.Api;
 using Shoko.Plugin.Anilist.Mapping;
+using Shoko.Plugin.Anilist.Metadata;
 using Shoko.Plugin.Anilist.Storage;
 
 namespace Shoko.Plugin.Anilist.Services;
@@ -29,6 +31,7 @@ namespace Shoko.Plugin.Anilist.Services;
 /// <param name="store">The plugin's store.</param>
 /// <param name="linkingService">Matches the linked anime's episodes again after a refresh.</param>
 /// <param name="airingScheduleProvider">Writes the broadcast times.</param>
+/// <param name="providerManager">The core's provider registry, asked whether the provider's <c>character</c> and <c>creator</c> kinds are on.</param>
 /// <param name="configurationProvider">The plugin's configuration.</param>
 /// <param name="logger">The logger.</param>
 public sealed class AnilistRefreshService(
@@ -36,6 +39,7 @@ public sealed class AnilistRefreshService(
     AnilistStore store,
     AnilistLinkingService linkingService,
     AnilistAiringScheduleProvider airingScheduleProvider,
+    IMetadataProviderManager providerManager,
     ConfigurationProvider<AnilistConfiguration> configurationProvider,
     ILogger<AnilistRefreshService> logger
 )
@@ -52,11 +56,11 @@ public sealed class AnilistRefreshService(
     /// refresh is quick, and writes it into the stores.
     /// </summary>
     /// <remarks>
-    /// The core fetches the staff, characters and studios named on their own
-    /// for the kinds turned on. A quick refresh leaves out the cast and crew
-    /// and the matching of the linked anime's episodes, and leaves the
-    /// plugin's document looking newly added. An anime AniList no longer has
-    /// is left as it was stored.
+    /// The cast and crew past the first page are fetched only while the
+    /// provider's <c>character</c> and <c>creator</c> kinds are on. A quick
+    /// refresh leaves out the cast and crew and the matching of the linked
+    /// anime's episodes, and leaves the plugin's document looking newly
+    /// added. An anime AniList no longer has is left as it was stored.
     /// </remarks>
     /// <param name="anilistAnimeID">The AniList anime ID.</param>
     /// <param name="options">What kind of refresh it is.</param>
@@ -221,36 +225,83 @@ public sealed class AnilistRefreshService(
                 .Where(recommendation => recommendation.ID == anilistAnimeID)
                 .Select(recommendation => (AnilistUtility.SeriesGuid(anime.ID), recommendation.Score)));
 
+    // Pages past the first only while the kind is on; a partial list is
+    // written only over no stored credits.
     private async Task UpdatePeople(AnilistMedia media, JsonNode node, CancellationToken cancellationToken)
     {
         var seriesID = AnilistUtility.SeriesGuid(media.ID);
-        var people = new AnilistPeople();
-        var page = node["characters"];
-        while (page is not null)
+        var castPeople = new AnilistPeople();
+        var wholeCast = await ReadPeoplePages(
+            node["characters"],
+            IsKindOn(MetadataEntityType.Character),
+            page => AnilistMediaMapper.ReadCharacterPage(page, castPeople),
+            nextPage => apiClient.GetCharactersPageAsync(media.ID, nextPage, cancellationToken)
+        ).ConfigureAwait(false);
+        if (wholeCast || store.People.GetCast(seriesID).Count is 0)
         {
-            AnilistMediaMapper.ReadCharacterPage(page, people);
-            var (hasNextPage, nextPage) = AnilistMediaMapper.ReadPageInfo(page);
-            if (!hasNextPage)
-                break;
-
-            page = await apiClient.GetCharactersPageAsync(media.ID, nextPage, cancellationToken).ConfigureAwait(false);
+            SavePeople(castPeople);
+            store.People.SetCast(seriesID, castPeople.Cast);
+        }
+        else
+        {
+            logger.LogDebug("Read only the first page of AniList anime {AnimeID}'s characters; keeping the stored cast.", media.ID);
         }
 
-        page = node["staff"];
+        var crewPeople = new AnilistPeople();
+        var wholeCrew = await ReadPeoplePages(
+            node["staff"],
+            IsKindOn(MetadataEntityType.Creator),
+            page => AnilistMediaMapper.ReadStaffPage(page, crewPeople, media.OriginalLanguageCode),
+            nextPage => apiClient.GetStaffPageAsync(media.ID, nextPage, cancellationToken)
+        ).ConfigureAwait(false);
+        if (wholeCrew || store.People.GetCrew(seriesID).Count is 0)
+        {
+            SavePeople(crewPeople);
+            store.People.SetCrew(seriesID, crewPeople.Crew);
+        }
+        else
+        {
+            logger.LogDebug("Read only the first page of AniList anime {AnimeID}'s staff; keeping the stored crew.", media.ID);
+        }
+    }
+
+    // Reads the page and, when allowed, the rest; true once the list is whole.
+    private static async Task<bool> ReadPeoplePages(JsonNode? page, bool fetchMore, Action<JsonNode> readPage, Func<int, Task<JsonNode?>> fetchPage)
+    {
         while (page is not null)
         {
-            AnilistMediaMapper.ReadStaffPage(page, people, media.OriginalLanguageCode);
+            readPage(page);
             var (hasNextPage, nextPage) = AnilistMediaMapper.ReadPageInfo(page);
             if (!hasNextPage)
-                break;
+                return true;
 
-            page = await apiClient.GetStaffPageAsync(media.ID, nextPage, cancellationToken).ConfigureAwait(false);
+            if (!fetchMore)
+                return false;
+
+            page = await fetchPage(nextPage).ConfigureAwait(false);
         }
 
+        return true;
+    }
+
+    private void SavePeople(AnilistPeople people)
+    {
         store.People.SaveCreators(people.Creators.Values);
         store.People.SaveCharacters(people.Characters.Values);
         store.SavePortraits(people.Portraits);
-        store.People.SetCast(seriesID, people.Cast);
-        store.People.SetCrew(seriesID, people.Crew);
+    }
+
+    // The same switch the core's one-at-a-time refreshes follow; unregistered
+    // counts as off.
+    private bool IsKindOn(MetadataEntityType kind)
+    {
+        try
+        {
+            return providerManager.GetProviderInfo(typeof(AnilistMetadataProvider)).EnabledEntityTypes.Contains(kind);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException)
+        {
+            return false;
+        }
     }
 }
