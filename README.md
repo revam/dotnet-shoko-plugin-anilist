@@ -59,9 +59,18 @@ it as `MetadataSource.AniList`, a C# 14 extension member.
   dates agree too. The three best rated anime get their broadcast times from
   within a month of the anime's run, in one request, and are judged again
   with them, so the engine can line their episodes up with the anime's by air
-  date and tell a split cour or a remake apart. It hands the core every anime it scored, the one taken
-  first and the rest with why they lost, and writes nothing: the core links
-  what was taken and matches its episodes, or shows the list as a preview.
+  date and tell a split cour or a remake apart. AniList gives no episode
+  count for an airing anime, so the search reads its next episode instead:
+  the episodes aired so far count only when they are more than the AniDB
+  anime has, and the first episode's air date stands in for a start AniList
+  has not fully dated. Anime of unknown length still tied for the top get
+  their whole schedules, aired and upcoming, in one more request, and are
+  judged again with their last scheduled episode as their length. A match
+  found by the prequel's title that began long before the anime gives way to
+  one found by the anime's own title that did not. It hands the core every
+  anime it scored, the one taken first and the rest with why they lost, and
+  writes nothing: the core links what was taken and matches its episodes, or
+  shows the list as a preview.
 - Matches episodes with the engine again after each refresh that is not a
   quick one. A re-match leaves alone the episodes linked into another AniList
   anime and the ones the user said have no AniList episode, and matches again

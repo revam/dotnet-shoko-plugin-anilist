@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Shoko.Abstractions.Metadata;
 using Shoko.Abstractions.Metadata.Enums;
@@ -109,6 +110,15 @@ public sealed record AnilistMedia
 
     /// <summary>When it finished airing, as far as AniList knows.</summary>
     public PartialDateOnly? EndDate { get; init; }
+
+    /// <summary>
+    /// The number of the next episode to air, or <c>null</c> when none is
+    /// scheduled or it was not asked for. Only a search asks for it.
+    /// </summary>
+    public int? NextEpisodeNumber { get; init; }
+
+    /// <summary>When the next episode airs, in UTC, or <c>null</c>.</summary>
+    public DateTime? NextEpisodeAiringAt { get; init; }
 
     #endregion
 

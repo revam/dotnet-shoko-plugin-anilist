@@ -230,6 +230,85 @@ internal sealed class ServiceHarness : IDisposable
         return calls;
     }
 
+    /// <summary>
+    /// Makes the matching engine rate series as the test says and settle a
+    /// tie as the engine does once titles and dates agree: episodes aired on
+    /// most of the anime's days first, then the episode count, an unknown one
+    /// as good as the best of its tie, then the order given. Records what it
+    /// was handed.
+    /// </summary>
+    public List<(IReadOnlyList<MetadataSeriesSearchResult> Candidates, SeriesMatchOptions? Options)> JudgeSeriesWithTies(Func<MetadataSeriesSearchResult, SeriesMatchOptions?, MatchRating> rate)
+    {
+        var calls = new List<(IReadOnlyList<MetadataSeriesSearchResult>, SeriesMatchOptions?)>();
+        MatchingEngine
+            .Setup(engine => engine.MatchSeries(It.IsAny<IAnidbAnime>(), It.IsAny<IReadOnlyList<MetadataSeriesSearchResult>>(), It.IsAny<SeriesMatchOptions?>()))
+            .Returns((IAnidbAnime anime, IReadOnlyList<MetadataSeriesSearchResult> candidates, SeriesMatchOptions? options) =>
+            {
+                calls.Add((candidates, options));
+                var anidbCount = anime.EpisodeCounts.Episodes;
+                var days = anime.Episodes.Where(episode => episode.AirDate is not null).Select(episode => episode.AirDate!.Value).ToHashSet();
+                var judged = candidates
+                    .Select((candidate, index) =>
+                    {
+                        var sameDay = (candidate.Seasons ?? [])
+                            .SelectMany(season => season.Episodes ?? [])
+                            .Count(episode => episode.AiredAt is { } aired && days.Contains(aired));
+                        return (
+                            Candidate: candidate,
+                            Index: index,
+                            Rating: rate(candidate, options),
+                            Aligned: days.Count > 0 && sameDay * 2 >= days.Count,
+                            Difference: anidbCount > 0 && candidate.EpisodeCount is > 0 and var count ? Math.Abs(anidbCount - count) : (int?)null
+                        );
+                    })
+                    .ToList();
+                var countKeys = new int[judged.Count];
+                foreach (var tie in judged.GroupBy(judgement => (AnilistSearchService.MatchPriority(judgement.Rating), judgement.Aligned)))
+                {
+                    var best = tie.Min(judgement => judgement.Difference) ?? 0;
+                    foreach (var judgement in tie)
+                        countKeys[judgement.Index] = judgement.Difference ?? best;
+                }
+
+                var priorityOf = (MatchRating rating) => AnilistSearchService.MatchPriority(rating);
+                var ordered = judged
+                    .OrderBy(judgement => AnilistSearchService.MatchPriority(judgement.Rating))
+                    .ThenBy(judgement => !judgement.Aligned)
+                    .ThenBy(judgement => countKeys[judgement.Index])
+                    .ThenBy(judgement => judgement.Index)
+                    .ToList();
+                var winner = ordered[0];
+                var anyTaken = winner.Rating is not MatchRating.None;
+                return [.. ordered.Select(judgement => new SeriesMatch
+                {
+                    AnidbAnime = anime,
+                    Candidate = judgement.Candidate,
+                    Rating = judgement.Rating,
+                    EpisodeAlignment = judgement.Aligned
+                        ? new()
+                        {
+                            SeasonNumber = 1,
+                            Offset = 0,
+                            MatchedEpisodes = days.Count,
+                            DatedEpisodes = days.Count,
+                            MatchedDays = days.Count,
+                            IsConclusive = true,
+                        }
+                        : null,
+                    Rejection = (anyTaken, judgement) switch
+                    {
+                        (true, _) when judgement.Index == winner.Index => MatchRejectionReason.None,
+                        (false, _) or (_, { Rating: MatchRating.None }) => MatchRejectionReason.TitleMismatch,
+                        _ when priorityOf(judgement.Rating) != priorityOf(winner.Rating) => MatchRejectionReason.Outranked,
+                        _ when judgement.Aligned != winner.Aligned => MatchRejectionReason.DateMismatch,
+                        _ when countKeys[judgement.Index] != countKeys[winner.Index] => MatchRejectionReason.EpisodeCountMismatch,
+                        _ => MatchRejectionReason.Outranked,
+                    },
+                })];
+            });
+        return calls;
+    }
+
     public void Dispose()
     {
         _services.Dispose();

@@ -109,6 +109,10 @@ public static partial class AnilistMediaMapper
             TrailerID = GetString(media["trailer"]?["id"]),
             StartDate = ToPartialDate(ReadDate(media["startDate"])),
             EndDate = ToPartialDate(ReadDate(media["endDate"])),
+            NextEpisodeNumber = GetInt(media["nextAiringEpisode"]?["episode"]) is > 0 and var next ? next : null,
+            NextEpisodeAiringAt = GetLong(media["nextAiringEpisode"]?["airingAt"]) is > 0 and var airingAt
+                ? DateTimeOffset.FromUnixTimeSeconds(airingAt).UtcDateTime
+                : null,
             ExternalLinks = ReadExternalLinks(media),
         };
     }

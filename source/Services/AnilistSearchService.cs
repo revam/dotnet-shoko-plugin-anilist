@@ -34,6 +34,11 @@ public sealed record AnilistAutoMatch(int AnidbAnimeID, AnilistSearchResult Anim
     /// Why it was not taken, or <see langword="null"/> for the one taken.
     /// </summary>
     public MetadataAutoLinkRejection? Rejection { get; set; }
+
+    /// <summary>
+    /// Whether its episodes lined up with the anime's by their air dates.
+    /// </summary>
+    public bool IsAligned { get; init; }
 }
 
 /// <summary>
@@ -44,9 +49,12 @@ public sealed record AnilistAutoMatch(int AnidbAnimeID, AnilistSearchResult Anim
 /// main one, each with and without a sequel suffix and a subtitle, with and
 /// without the year, and has the core's <see cref="IMetadataMatchingEngine"/>
 /// judge the candidates on their titles, their start date and their episode
-/// count. AniList's search results carry all of that. Only the best few
-/// candidates cost a request more, one for all of them, for the air dates of
-/// their episodes, which the engine lines up with the anime's.
+/// count. AniList's search results carry all of that, and the next episode
+/// to air, which tells how far an airing anime of unknown length has got.
+/// Only the best few candidates cost a request more, one for all of them,
+/// for the air dates of their episodes, which the engine lines up with the
+/// anime's. Candidates of unknown length left tied for the top cost one more,
+/// for their whole schedules, which tell their length.
 /// </remarks>
 public sealed partial class AnilistSearchService
 {
@@ -72,6 +80,12 @@ public sealed partial class AnilistSearchService
     /// at the most.
     /// </summary>
     private const int MaxSchedulePages = 4;
+
+    /// <summary>
+    /// How many days before the anime's regular broadcast a candidate may
+    /// begin and still be the anime, as the matching engine counts them.
+    /// </summary>
+    private const int MaxDaysStartedBeforeStart = 180;
 
     /// <summary>
     /// How many of the anime found for one AniDB anime, over every title it
@@ -263,35 +277,87 @@ public sealed partial class AnilistSearchService
         // asked of AniList only once.
         var searched = new Dictionary<(string Query, int? Year, bool IncludeRestricted), IReadOnlyList<AnilistSearchResult>>();
         var schedules = new Dictionary<int, IReadOnlyList<MetadataSearchResultEpisode>?>();
+        var wholeSchedules = new Dictionary<int, WholeSchedule?>();
         var scored = new List<AnilistAutoMatch>();
 
         var originalTitle = language == mainTitle.Language
             ? mainTitle.Value
             : (prequelFollowed ? series.Titles : allTitles).FirstOrDefault(title => title.Type is TitleType.Official && title.Language == language)?.Value;
         var match = !string.IsNullOrEmpty(originalTitle)
-            ? await SearchUsingTitle(scored, anime, originalTitle, airDate, language is TitleLanguage.Japanese, searched, schedules, cancellationToken).ConfigureAwait(false)
+            ? await SearchUsingTitle(
+                scored,
+                anime,
+                originalTitle,
+                airDate,
+                language is TitleLanguage.Japanese,
+                searched,
+                schedules,
+                wholeSchedules,
+                cancellationToken
+            ).ConfigureAwait(false)
             : null;
 
         if (match is null)
         {
             var englishTitle = (prequelFollowed ? series.Titles : allTitles).FirstOrDefault(title => title is { Type: TitleType.Official, Language: TitleLanguage.English })?.Value;
             if (!string.IsNullOrEmpty(englishTitle) && !string.Equals(englishTitle, originalTitle, StringComparison.Ordinal))
-                match = await SearchUsingTitle(scored, anime, englishTitle, airDate, false, searched, schedules, cancellationToken).ConfigureAwait(false);
+            {
+                match = await SearchUsingTitle(
+                    scored,
+                    anime,
+                    englishTitle,
+                    airDate,
+                    false,
+                    searched,
+                    schedules,
+                    wholeSchedules,
+                    cancellationToken
+                ).ConfigureAwait(false);
+            }
         }
 
-        match ??= await SearchUsingTitle(scored, anime, mainTitle.Value, airDate, false, searched, schedules, cancellationToken).ConfigureAwait(false);
+        match ??= await SearchUsingTitle(
+            scored,
+            anime,
+            mainTitle.Value,
+            airDate,
+            false,
+            searched,
+            schedules,
+            wholeSchedules,
+            cancellationToken
+        ).ConfigureAwait(false);
 
         // After following a prequel, the anime's own titles may still fit
-        // better; they win when they rate at least as well, or when they
-        // agree on the date where the prequel's title found only a title,
-        // which is then most often the prequel itself.
+        // better; they win when they rate at least as well, when they agree
+        // on the date where the prequel's title found only a title, or when
+        // the prequel's title found an anime begun long before this one and
+        // they did not. Either of the last two is then an earlier season,
+        // most often the prequel itself, whatever it rated.
         if (prequelFollowed && match is not null)
         {
             var ownTitle = allTitles.FirstOrDefault(title => title.Type is TitleType.Official && title.Language == language)?.Value
                 ?? allTitles.FirstOrDefault(title => title is { Type: TitleType.Official, Language: TitleLanguage.English })?.Value
                 ?? mainTitle.Value;
-            var ownMatch = await SearchUsingTitle(scored, anime, ownTitle, airDate, language is TitleLanguage.Japanese, searched, schedules, cancellationToken).ConfigureAwait(false);
-            if (ownMatch is not null && (MatchPriority(ownMatch.MatchRating) <= MatchPriority(match.MatchRating)
+            var ownMatch = await SearchUsingTitle(
+                scored,
+                anime,
+                ownTitle,
+                airDate,
+                language is TitleLanguage.Japanese,
+                searched,
+                schedules,
+                wholeSchedules,
+                cancellationToken
+            ).ConfigureAwait(false);
+            var earlierSeason = ownMatch is not null && StartedLongBefore(match, airDate) && !StartedLongBefore(ownMatch, airDate);
+            if (earlierSeason)
+                match.Rejection = new()
+                {
+                    Reason = MatchRejectionReason.Outranked,
+                    Details = "It began long before the anime, as an earlier season does, and the anime's own title matched one that did not.",
+                };
+            else if (ownMatch is not null && (MatchPriority(ownMatch.MatchRating) <= MatchPriority(match.MatchRating)
                 || (ownMatch.MatchRating is MatchRating.DateAndTitleKindaMatches && match.MatchRating is MatchRating.TitleMatches)))
                 match.Rejection = new() { Reason = MatchRejectionReason.Outranked, Details = "The anime's own title matched as well or better than its first prequel's." };
             else
@@ -326,6 +392,10 @@ public sealed partial class AnilistSearchService
     /// The episodes fetched so far for the best candidates, by AniList anime
     /// ID, <see langword="null"/> for one AniList had none for.
     /// </param>
+    /// <param name="wholeSchedules">
+    /// The whole schedules fetched so far for candidates of unknown length,
+    /// by AniList anime ID, <c>null</c> for one AniList had none for.
+    /// </param>
     /// <param name="cancellationToken">Cancels the search.</param>
     /// <returns>The candidate taken, or <see langword="null"/> when none was.</returns>
     /// <exception cref="AnilistApiException">AniList answered with something unexpected.</exception>
@@ -338,6 +408,7 @@ public sealed partial class AnilistSearchService
         bool isJapanese,
         Dictionary<(string Query, int? Year, bool IncludeRestricted), IReadOnlyList<AnilistSearchResult>> searched,
         Dictionary<int, IReadOnlyList<MetadataSearchResultEpisode>?> schedules,
+        Dictionary<int, WholeSchedule?> wholeSchedules,
         CancellationToken cancellationToken
     )
     {
@@ -378,7 +449,8 @@ public sealed partial class AnilistSearchService
         // AniList keeps every season as an anime of its own, so a title found
         // only once its sequel suffix is dropped names another season unless
         // the dates agree too.
-        var mapped = candidates.Select(candidate => (Anime: candidate, Result: candidate.ToMetadataSearchResult())).ToList();
+        var anidbEpisodeCount = anime.EpisodeCounts.Episodes;
+        var mapped = candidates.Select(candidate => (Anime: candidate, Result: ToCandidate(candidate, anidbEpisodeCount))).ToList();
         var options = new SeriesMatchOptions
         {
             Query = originalTitle,
@@ -397,12 +469,32 @@ public sealed partial class AnilistSearchService
             judged = _matchingEngine.MatchSeries(anime, [.. mapped.Select(pair => pair.Result)], options);
         }
 
+        // Those of unknown length still tied for the top are judged once
+        // more with their whole schedules, whose last episode tells their
+        // length and whose dates line up wherever the window missed.
+        var tied = TiedOfUnknownLength(judged);
+        if (tied.Count > 0)
+        {
+            await FetchWholeSchedules(anime, tied, wholeSchedules, cancellationToken).ConfigureAwait(false);
+            if (tied.Any(id => wholeSchedules.GetValueOrDefault(id) is not null))
+            {
+                mapped =
+                [
+                    .. mapped.Select(pair => tied.Contains(pair.Anime.ID) && wholeSchedules.GetValueOrDefault(pair.Anime.ID) is { } schedule
+                        ? (pair.Anime, WithWholeSchedule(pair.Result, schedule))
+                        : pair),
+                ];
+                judged = _matchingEngine.MatchSeries(anime, [.. mapped.Select(pair => pair.Result)], options);
+            }
+        }
+
         AnilistAutoMatch? taken = null;
         foreach (var match in judged)
         {
             var result = new AnilistAutoMatch(anime.AnidbID, mapped.First(pair => ReferenceEquals(pair.Result, match.Candidate)).Anime, match.Candidate, match.Rating)
             {
                 Rejection = match.Rejection is MatchRejectionReason.None ? null : new() { Reason = match.Rejection, Details = $"Searched for \"{originalTitle}\"." },
+                IsAligned = match.EpisodeAlignment is { IsConclusive: true },
             };
             _logger.LogTrace("Candidate anime {AnimeName} ({ID}): rating={Rating}, rejection={Rejection}", result.Anime.Title, result.Anime.ID, result.MatchRating, match.Rejection);
             scored.Add(result);
@@ -469,7 +561,7 @@ public sealed partial class AnilistSearchService
             {
                 var node = await _apiClient.GetAiringSchedulesPageAsync(wanted, after, before, page, cancellationToken).ConfigureAwait(false);
                 AnilistMediaMapper.ReadAiringSchedulesPage(node, slots);
-                if (node?["pageInfo"]?["hasNextPage"] is not JsonValue more || !more.TryGetValue<bool>(out var hasNextPage) || !hasNextPage)
+                if (!HasNextPage(node))
                     break;
             }
         }
@@ -479,10 +571,146 @@ public sealed partial class AnilistSearchService
         }
 
         foreach (var id in wanted)
-            schedules[id] = slots.TryGetValue(id, out var episodes)
-                ? [.. episodes.OrderBy(pair => pair.Key).Select(pair => new MetadataSearchResultEpisode { EpisodeNumber = pair.Key, AiredAt = DateOnly.FromDateTime(pair.Value + _japanOffset) })]
-                : null;
+            schedules[id] = slots.TryGetValue(id, out var episodes) ? ToEpisodes(episodes) : null;
     }
+
+    /// <summary>
+    /// The AniList anime of unknown length among the candidates still tied
+    /// for the top: rated as well as the one taken, and taken or turned down
+    /// as outranked or for their episode count.
+    /// </summary>
+    /// <param name="judged">The candidates as the engine judged them, best first.</param>
+    /// <returns>
+    /// Their AniList anime IDs; empty when none was taken or nothing ties
+    /// with the one taken.
+    /// </returns>
+    internal static IReadOnlyList<int> TiedOfUnknownLength(IReadOnlyList<SeriesMatch> judged)
+    {
+        if (judged.FirstOrDefault(match => match.Rejection is MatchRejectionReason.None) is not { Rating: not MatchRating.None } winner)
+            return [];
+
+        var tied = judged
+            .Where(match => MatchPriority(match.Rating) == MatchPriority(winner.Rating)
+                && match.Rejection is MatchRejectionReason.None or MatchRejectionReason.Outranked or MatchRejectionReason.EpisodeCountMismatch)
+            .ToList();
+        if (tied.Count < 2)
+            return [];
+
+        return
+        [
+            .. tied
+                .Where(match => match.Candidate.EpisodeCount is null)
+                .Select(match => AnilistUtility.TryGetID(match.Candidate.ID, MetadataEntityType.Series, out var id) ? id : 0)
+                .Where(id => id > 0),
+        ];
+    }
+
+    /// <summary>
+    /// Fetches the whole schedules, aired and upcoming, of the candidates of
+    /// unknown length still tied for the top, in one query for all of them
+    /// reading at most a page per anime.
+    /// </summary>
+    /// <remarks>
+    /// The schedule is read by anime, so a read cut off by the page budget
+    /// ends inside the last anime read and never reaches the rest. That
+    /// anime's last episode read is only a lower bound, used as its length
+    /// only when it proves it longer than the AniDB anime. A failed fetch
+    /// leaves the candidates as they were.
+    /// </remarks>
+    /// <param name="anime">The AniDB anime.</param>
+    /// <param name="tied">The tied candidates' AniList anime IDs.</param>
+    /// <param name="wholeSchedules">
+    /// The whole schedules fetched so far, by AniList anime ID, added to;
+    /// <c>null</c> for one AniList had none for.
+    /// </param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>A task that completes once the schedules are fetched.</returns>
+    /// <exception cref="AnilistUnavailableException">AniList cannot be reached for now.</exception>
+    private async Task FetchWholeSchedules(
+        IAnidbAnime anime,
+        IReadOnlyList<int> tied,
+        Dictionary<int, WholeSchedule?> wholeSchedules,
+        CancellationToken cancellationToken
+    )
+    {
+        var wanted = tied.Where(id => !wholeSchedules.ContainsKey(id)).ToList();
+        if (wanted.Count is 0)
+            return;
+
+        var slots = new Dictionary<int, Dictionary<int, DateTime>>();
+        var cutOff = false;
+        try
+        {
+            for (var page = 1; page <= wanted.Count; page++)
+            {
+                var node = await _apiClient.GetWholeAiringSchedulesPageAsync(wanted, page, cancellationToken).ConfigureAwait(false);
+                AnilistMediaMapper.ReadAiringSchedulesPage(node, slots);
+                cutOff = HasNextPage(node);
+                if (!cutOff)
+                    break;
+            }
+        }
+        catch (AnilistApiException ex)
+        {
+            _logger.LogDebug(ex, "Unable to fetch the whole airing schedules of AniList anime {AnimeIDs}. Judging them without.", string.Join(", ", wanted));
+            foreach (var id in wanted)
+                wholeSchedules[id] = null;
+            return;
+        }
+
+        var lastRead = cutOff && slots.Count > 0 ? slots.Keys.Max() : (int?)null;
+        var anidbEpisodeCount = anime.EpisodeCounts.Episodes;
+        foreach (var id in wanted)
+        {
+            if (!slots.TryGetValue(id, out var episodes) || episodes.Count is 0)
+            {
+                wholeSchedules[id] = null;
+                continue;
+            }
+
+            var lastEpisode = episodes.Keys.Max();
+            var complete = lastRead is not { } cut || id < cut;
+            wholeSchedules[id] = new(
+                ToEpisodes(episodes),
+                complete || (anidbEpisodeCount > 0 && lastEpisode > anidbEpisodeCount) ? lastEpisode : null
+            );
+        }
+    }
+
+    /// <summary>
+    /// A search result as the matching engine judges it for an AniDB anime.
+    /// </summary>
+    /// <remarks>
+    /// An airing anime of unknown length is as long as it has aired, but only
+    /// when that is longer than the AniDB anime: a lower bound can prove it
+    /// too long, never right. One whose start AniList has not fully dated
+    /// began when its first episode airs, as dated in Japan.
+    /// </remarks>
+    /// <param name="result">The search result.</param>
+    /// <param name="anidbEpisodeCount">The AniDB anime's episode count, <c>0</c> when unknown.</param>
+    /// <returns>The candidate.</returns>
+    internal static MetadataSeriesSearchResult ToCandidate(AnilistSearchResult result, int anidbEpisodeCount)
+    {
+        var candidate = result.ToMetadataSearchResult();
+        var media = result.Anime;
+        if (candidate.EpisodeCount is null && anidbEpisodeCount > 0 && media.NextEpisodeNumber - 1 is { } aired && aired > anidbEpisodeCount)
+            candidate = candidate with { EpisodeCount = aired };
+
+        if (candidate.FirstAiredAt is not { IsComplete: true } && media is { NextEpisodeNumber: 1, NextEpisodeAiringAt: { } airingAt })
+            candidate = candidate with { FirstAiredAt = new PartialDateOnly(DateOnly.FromDateTime(airingAt + _japanOffset)) };
+
+        return candidate;
+    }
+
+    /// <summary>
+    /// A candidate with its whole schedule: its episodes, and its length
+    /// when the schedule tells it and nothing else did.
+    /// </summary>
+    /// <param name="candidate">The candidate.</param>
+    /// <param name="schedule">Its whole schedule.</param>
+    /// <returns>The candidate.</returns>
+    internal static MetadataSeriesSearchResult WithWholeSchedule(MetadataSeriesSearchResult candidate, WholeSchedule schedule)
+        => WithEpisodes(candidate with { EpisodeCount = candidate.EpisodeCount ?? schedule.EpisodeCount }, schedule.Episodes);
 
     /// <summary>
     /// A candidate with its episodes, as the one season of its own an anime
@@ -507,6 +735,46 @@ public sealed partial class AnilistSearchService
                 },
             ],
         };
+
+    /// <summary>
+    /// An anime's slots as episodes dated in Japan, in order.
+    /// </summary>
+    /// <param name="slots">Its slots, by episode number, in UTC.</param>
+    /// <returns>The episodes.</returns>
+    private static IReadOnlyList<MetadataSearchResultEpisode> ToEpisodes(Dictionary<int, DateTime> slots)
+        =>
+        [
+            .. slots
+                .OrderBy(pair => pair.Key)
+                .Select(pair => new MetadataSearchResultEpisode { EpisodeNumber = pair.Key, AiredAt = DateOnly.FromDateTime(pair.Value + _japanOffset) }),
+        ];
+
+    /// <summary>
+    /// Whether a page of airing schedules says another follows.
+    /// </summary>
+    /// <param name="page">The <c>Page</c> node.</param>
+    /// <returns><c>true</c> when another page follows.</returns>
+    private static bool HasNextPage(JsonNode? page)
+        => page?["pageInfo"]?["hasNextPage"] is JsonValue more && more.TryGetValue<bool>(out var hasNextPage) && hasNextPage;
+
+    /// <summary>
+    /// Whether a match began long before the anime's regular broadcast,
+    /// as an earlier season does, its episodes not lining up with the
+    /// anime's.
+    /// </summary>
+    /// <param name="match">The match.</param>
+    /// <param name="airDate">When the anime's regular broadcast started.</param>
+    /// <returns><c>true</c> when it began too long before to be the anime.</returns>
+    private static bool StartedLongBefore(AnilistAutoMatch match, DateTime airDate)
+    {
+        if (match.IsAligned)
+            return false;
+
+        var started = match.Candidate.FirstAiredAt is { IsComplete: true } aired
+            ? aired.ToDateOnly()
+            : match.Candidate.Seasons?.FirstOrDefault()?.FirstEpisodeAiredAt;
+        return started is { } date && DateOnly.FromDateTime(airDate).DayNumber - date.DayNumber > MaxDaysStartedBeforeStart;
+    }
 
     private async Task<IReadOnlyList<AnilistSearchResult>> SearchRaw(
         string query,
@@ -589,3 +857,13 @@ public sealed partial class AnilistSearchService
 
     #endregion
 }
+
+/// <summary>
+/// The whole airing schedule of a candidate of unknown length.
+/// </summary>
+/// <param name="Episodes">Its scheduled episodes, aired and upcoming, dated in Japan.</param>
+/// <param name="EpisodeCount">
+/// Its last scheduled episode as its length, or <c>null</c> when the
+/// schedule was cut off short of telling it.
+/// </param>
+internal sealed record WholeSchedule(IReadOnlyList<MetadataSearchResultEpisode> Episodes, int? EpisodeCount);

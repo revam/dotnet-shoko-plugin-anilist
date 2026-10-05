@@ -217,6 +217,17 @@ public class AnilistApiClient(HttpClient httpClient, AnilistRateLimiter rateLimi
         }
         """;
 
+    private static readonly string _wholeAiringSchedulesQuery = """
+        query ($ids: [Int], $page: Int) {
+          Page(page: $page, perPage: 50) {
+            pageInfo { currentPage hasNextPage }
+            airingSchedules(mediaId_in: $ids, sort: [MEDIA_ID, EPISODE]) {
+              mediaId episode airingAt
+            }
+          }
+        }
+        """;
+
     private static readonly string _recommendationsQuery = $$"""
         query ($id: Int, $recommendationPage: Int) {
           Media(id: $id, type: ANIME) {
@@ -321,6 +332,35 @@ public class AnilistApiClient(HttpClient httpClient, AnilistRateLimiter rateLimi
     }
 
     /// <summary>
+    /// Fetches one page of the whole airing schedules of several anime at
+    /// once, aired and upcoming, by anime and then episode.
+    /// </summary>
+    /// <param name="anilistAnimeIDs">The AniList anime IDs.</param>
+    /// <param name="page">The page, from 1.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The <c>Page</c> node, or <c>null</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="anilistAnimeIDs"/> is <c>null</c>.</exception>
+    /// <exception cref="AnilistApiException">AniList answered with something unexpected.</exception>
+    /// <exception cref="AnilistUnavailableException">AniList cannot be reached for now.</exception>
+    public Task<JsonNode?> GetWholeAiringSchedulesPageAsync(IReadOnlyCollection<int> anilistAnimeIDs, int page, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(anilistAnimeIDs);
+
+        var variables = new Dictionary<string, object?>
+        {
+            ["ids"] = anilistAnimeIDs,
+            ["page"] = Math.Max(page, 1),
+        };
+        return ExecuteAndSelectAsync(
+            _wholeAiringSchedulesQuery,
+            variables,
+            "Page",
+            $"Get whole airing schedules page {page} for anime {string.Join(", ", anilistAnimeIDs)}",
+            cancellationToken
+        );
+    }
+
+    /// <summary>
     /// Fetches one page of an anime's recommendations.
     /// </summary>
     /// <param name="anilistAnimeID">The AniList anime ID.</param>
@@ -393,6 +433,10 @@ public class AnilistApiClient(HttpClient httpClient, AnilistRateLimiter rateLimi
     /// Searches for anime. Every filter is applied by AniList, so only the
     /// page asked for is transferred.
     /// </summary>
+    /// <remarks>
+    /// Unlike the full fetch, each result carries its next episode to air,
+    /// which tells the automatic search how far an airing anime has got.
+    /// </remarks>
     /// <param name="options">What to search for.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The <c>Page</c> node, or <see langword="null"/> on an empty response.</returns>
@@ -461,6 +505,7 @@ public class AnilistApiClient(HttpClient httpClient, AnilistRateLimiter rateLimi
                 pageInfo { currentPage lastPage hasNextPage total }
                 media({{string.Join(", ", arguments)}}) {
                   ...MediaFields
+                  nextAiringEpisode { episode airingAt }
                 }
               }
             }
