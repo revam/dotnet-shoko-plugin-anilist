@@ -94,7 +94,7 @@ public class AnilistMetadataProviderTests
     [Fact]
     public async Task GetImages_HandsOutTheCoverAndBanner_AndThePortraits()
     {
-        using var harness = new ServiceHarness(new() { AutoDownloadCharacters = true, AutoDownloadStaff = true }).Respond(Fixture.Read("media-21.json"));
+        using var harness = new ServiceHarness().Respond(Fixture.Read("media-21.json"));
         var provider = harness.Get<AnilistMetadataProvider>();
         await provider.RefreshSeries(_series, new(), TestContext.Current.CancellationToken);
 

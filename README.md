@@ -29,8 +29,8 @@ it as `MetadataSource.AniList`, a C# 14 extension member.
   roots are an eroge (Fate/stay night, for example) stays a visual novel:
   AniList lists no visual novels and flags no eroge, so the adult flag is the
   only signal it gives. AniDB's source tags carry that fact instead.
-- Writes tags and genres (genres as `TagKind.Genre`), studios, cast and crew
-  with genders, birthdays (whatever parts AniList knows, so a birthday without
+- Writes tags and genres (genres as `TagKind.Genre`), studios, and cast and
+  crew (on every refresh but a quick one) with genders, birthdays (whatever parts AniList knows, so a birthday without
   a year is kept), alternative names, role notes and dub groups,
   relations to other anime, and recommendations as suggestions. AniList serves
   one recommendation from both sides, so what the other stored anime recommend
@@ -43,7 +43,9 @@ it as `MetadataSource.AniList`, a C# 14 extension member.
 - Refreshes one staff member, character or studio on its own when the core
   asks, which it does only for a stub: an anime's refresh writes them in full,
   so they never go stale on their own. They are the provider's `creator`,
-  `character` and `studio` kinds, and their AniList pages are answered there.
+  `character` and `studio` kinds, on by default, and their AniList pages are
+  answered there. A kind turned off only stops these lone fetches; the
+  anime's refresh writes them whatever is turned on.
 - Hands the core its images (a cover and a banner per anime, a portrait per
   character or person) and registers AniList's default template URL. Which of
   them are downloaded is set in the core's image settings for the source.
@@ -156,14 +158,16 @@ a server's own database, and never edit one a release has shipped.
 | Consider Existing Other Links | off | Leave out AniList episodes another anime is linked to when matching. |
 | Auto-Search Candidate Count | 5 | How many search results to score when linking automatically. |
 | Purge Unlinked After (Days) | 14 | How long an unlinked anime stays stored after its last refresh. 0 keeps it forever. |
-| Download Characters / Staff / Studios | off | Whether to fetch them. A refresh asked for with cast and crew fetches both whatever these say. |
 | Recommendation Depth | While well rated | How far down the recommendations to read. |
 | Image CDN URL | *(none)* | A base URL or `{0}` template for the image CDN. `ANILIST_IMAGE_CDN_URL` sets it too. |
 | Rate Limit | 1 per 4 s | `ANILIST_RATE_LIMIT_MAX_REQUESTS_PER_WINDOW` and `ANILIST_RATE_LIMIT_WINDOW_DURATION_MS` set it too. |
 
 Whether the provider answers at all, and whether it links on its own, belongs to
 `IMetadataProviderManager`, not to these settings, and which images are
-downloaded to the core's image settings for the `anilist` source.
+downloaded to the core's image settings for the `anilist` source. There is no
+switch here for staff, characters or studios: every refresh but a quick one
+writes them, and the provider's kinds decide whether one is fetched on its
+own.
 
 ## Building
 

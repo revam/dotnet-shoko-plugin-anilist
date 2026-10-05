@@ -21,18 +21,15 @@ public class AnilistRefreshServiceTests
 
     private static readonly MetadataGuid _series = AnilistUtility.SeriesGuid(21);
 
-    private static AnilistConfiguration Everything() => new()
+    private static AnilistConfiguration Unthrottled() => new()
     {
-        AutoDownloadCharacters = true,
-        AutoDownloadStaff = true,
-        AutoDownloadStudios = true,
         RateLimit = { MaxRequestsPerWindow = 90, WindowDurationMs = 1000 },
     };
 
     [Fact]
     public async Task RefreshAnime_WritesTheSeriesAndEverythingAroundIt()
     {
-        using var harness = new ServiceHarness(Everything()).Respond(_media);
+        using var harness = new ServiceHarness(Unthrottled()).Respond(_media);
 
         Assert.True(await harness.Get<AnilistRefreshService>().RefreshAnime(21, new(), TestContext.Current.CancellationToken));
 
@@ -76,7 +73,7 @@ public class AnilistRefreshServiceTests
     [Fact]
     public async Task RefreshAnime_WritesThePeopleWithTheirNewFields()
     {
-        using var harness = new ServiceHarness(Everything()).Respond(_media);
+        using var harness = new ServiceHarness(Unthrottled()).Respond(_media);
 
         await harness.Get<AnilistRefreshService>().RefreshAnime(21, new(), TestContext.Current.CancellationToken);
 
@@ -121,31 +118,9 @@ public class AnilistRefreshServiceTests
     }
 
     [Fact]
-    public async Task RefreshAnime_LeavesPeopleAndStudiosOut_WhenTheSettingsDo()
-    {
-        using var harness = new ServiceHarness().Respond(_media);
-
-        await harness.Get<AnilistRefreshService>().RefreshAnime(21, new(), TestContext.Current.CancellationToken);
-
-        Assert.False(harness.Stores.People.Cast.ContainsKey(_series));
-        Assert.False(harness.Stores.People.Crew.ContainsKey(_series));
-        Assert.False(harness.Stores.Studios.Entries.ContainsKey(_series));
-    }
-
-    [Fact]
-    public async Task RefreshAnime_FetchesThePeople_WhenTheOptionsAskForThem()
-    {
-        using var harness = new ServiceHarness().Respond(_media);
-
-        await harness.Get<AnilistRefreshService>().RefreshAnime(21, new() { DownloadCrewAndCast = true }, TestContext.Current.CancellationToken);
-
-        Assert.Equal(3, harness.Stores.People.Cast[_series].Count);
-    }
-
-    [Fact]
     public async Task QuickRefresh_LeavesTheAnimeLookingNew_AndLeavesThePeopleAndMatchingOut()
     {
-        using var harness = new ServiceHarness(Everything()).Respond(_media);
+        using var harness = new ServiceHarness(Unthrottled()).Respond(_media);
         harness.Stores.CrossReferences.AddSeries(100, 21);
 
         await harness.Get<AnilistRefreshService>().RefreshAnime(21, new() { QuickRefresh = true }, TestContext.Current.CancellationToken);
@@ -185,16 +160,16 @@ public class AnilistRefreshServiceTests
     }
 
     [Fact]
-    public async Task RefreshAnime_KeepsTheCast_WhenOnlyTheStaffIsFetched()
+    public async Task QuickRefresh_KeepsTheStoredCastAndCrew()
     {
-        using var harness = new ServiceHarness(Everything()).Respond(_media).Respond(_media);
+        using var harness = new ServiceHarness(Unthrottled()).Respond(_media).Respond(_media);
         var refresh = harness.Get<AnilistRefreshService>();
         await refresh.RefreshAnime(21, new(), TestContext.Current.CancellationToken);
 
-        harness.Stores.Configuration.AutoDownloadCharacters = false;
-        await refresh.RefreshAnime(21, new(), TestContext.Current.CancellationToken);
+        await refresh.RefreshAnime(21, new() { QuickRefresh = true }, TestContext.Current.CancellationToken);
 
         Assert.Equal(3, harness.Stores.People.Cast[_series].Count);
+        Assert.Equal(2, harness.Stores.People.Crew[_series].Count);
     }
 
     [Fact]

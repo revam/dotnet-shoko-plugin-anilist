@@ -15,7 +15,9 @@ namespace Shoko.Plugin.Anilist;
 /// which turns a provider on and off per source and per entity type, and whose
 /// auto-link switches decide whether new anime are searched for on their own.
 /// Which images are downloaded is the core's too, set in the image settings
-/// for the AniList source.
+/// for the AniList source, and so is whether staff, characters and studios
+/// are fetched on their own: the provider's <c>creator</c>,
+/// <c>character</c> and <c>studio</c> kinds.
 /// </remarks>
 [Display(Name = "AniList")]
 public class AnilistConfiguration : IConfiguration
@@ -53,24 +55,6 @@ public class AnilistConfiguration : IConfiguration
     #endregion
 
     #region Downloads
-
-    /// <summary>
-    /// Whether to fetch the characters and their voice actors for an anime.
-    /// </summary>
-    [Display(Name = "Download Characters")]
-    public bool AutoDownloadCharacters { get; set; }
-
-    /// <summary>
-    /// Whether to fetch the production staff for an anime.
-    /// </summary>
-    [Display(Name = "Download Staff")]
-    public bool AutoDownloadStaff { get; set; }
-
-    /// <summary>
-    /// Whether to fetch the studios for an anime.
-    /// </summary>
-    [Display(Name = "Download Studios")]
-    public bool AutoDownloadStudios { get; set; }
 
     /// <summary>
     /// How far down AniList's recommendations to read. The first page costs

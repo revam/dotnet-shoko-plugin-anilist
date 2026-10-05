@@ -13,9 +13,6 @@ public class AnilistConfigurationTests
         var configuration = new AnilistConfiguration();
 
         Assert.False(configuration.ConsiderExistingOtherLinks);
-        Assert.False(configuration.AutoDownloadCharacters);
-        Assert.False(configuration.AutoDownloadStaff);
-        Assert.False(configuration.AutoDownloadStudios);
         Assert.Equal(AnilistRecommendationDepth.WhileWellRated, configuration.RecommendationDepth);
         Assert.Equal(5, configuration.AutoSearchCandidateCount);
         Assert.Equal(14, configuration.AutoPurgeUnlinkedAfterDays);
@@ -30,10 +27,13 @@ public class AnilistConfigurationTests
         => Assert.Equal(variable, type.GetProperty(property)!.GetCustomAttribute<EnvironmentVariableAttribute>()?.Name);
 
     [Fact]
-    public void TheImageSwitches_AreTheCoresNow()
+    public void TheDownloadSwitches_AreTheCoresNow()
     {
         Assert.Null(typeof(AnilistConfiguration).GetProperty("AutoDownloadPosters"));
         Assert.Null(typeof(AnilistConfiguration).GetProperty("AutoDownloadBanners"));
+        Assert.Null(typeof(AnilistConfiguration).GetProperty("AutoDownloadCharacters"));
+        Assert.Null(typeof(AnilistConfiguration).GetProperty("AutoDownloadStaff"));
+        Assert.Null(typeof(AnilistConfiguration).GetProperty("AutoDownloadStudios"));
     }
 
     [Fact]

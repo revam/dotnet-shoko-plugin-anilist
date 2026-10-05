@@ -48,13 +48,15 @@ public sealed class AnilistRefreshService(
     private const int MinimumRatingToKeepPaging = 10;
 
     /// <summary>
-    /// Fetches an anime and everything the settings and options ask for, and
-    /// writes it into the stores.
+    /// Fetches an anime with its studios, and its cast and crew unless the
+    /// refresh is quick, and writes it into the stores.
     /// </summary>
     /// <remarks>
-    /// A quick refresh leaves out the cast and crew and the matching of the
-    /// linked anime's episodes, and leaves the plugin's document looking
-    /// newly added. An anime AniList no longer has is left as it was stored.
+    /// The core fetches the staff, characters and studios named on their own
+    /// for the kinds turned on. A quick refresh leaves out the cast and crew
+    /// and the matching of the linked anime's episodes, and leaves the
+    /// plugin's document looking newly added. An anime AniList no longer has
+    /// is left as it was stored.
     /// </remarks>
     /// <param name="anilistAnimeID">The AniList anime ID.</param>
     /// <param name="options">What kind of refresh it is.</param>
@@ -103,14 +105,13 @@ public sealed class AnilistRefreshService(
         var genres = AnilistMediaMapper.GenresAsTags(media.Genres);
         store.Tags.SaveTags([.. tags, .. genres]);
         store.Tags.SetTags(seriesID, [.. entryTags, .. AnilistMediaMapper.GenreEntries(media.Genres)]);
-        UpdateStudios(seriesID, node, configuration.AutoDownloadStudios);
+        var (studios, entryStudios) = AnilistMediaMapper.ReadStudios(node);
+        store.Studios.SaveStudios(studios);
+        store.Studios.SetStudios(seriesID, entryStudios);
         store.Relations.SetRelations(seriesID, AnilistMediaMapper.ReadRelations(node));
         store.Suggestions.SetSuggestions(seriesID, AnilistMediaMapper.MergeSuggestions(anilistAnimeID, suggestions, ReverseSuggestions(anilistAnimeID)));
         if (!options.QuickRefresh)
-        {
-            var castAndCrew = options.DownloadCrewAndCast;
-            await UpdatePeople(media, node, castAndCrew ?? configuration.AutoDownloadCharacters, castAndCrew ?? configuration.AutoDownloadStaff, cancellationToken).ConfigureAwait(false);
-        }
+            await UpdatePeople(media, node, cancellationToken).ConfigureAwait(false);
 
         // The broadcast times, and the links of the anime linked to it.
         if (store.GetSeries(anilistAnimeID) is { } series)
@@ -189,19 +190,6 @@ public sealed class AnilistRefreshService(
         return schedule;
     }
 
-    private void UpdateStudios(MetadataGuid seriesID, JsonNode media, bool enabled)
-    {
-        if (!enabled)
-        {
-            store.Studios.RemoveStudios(seriesID);
-            return;
-        }
-
-        var (studios, entries) = AnilistMediaMapper.ReadStudios(media);
-        store.Studios.SaveStudios(studios);
-        store.Studios.SetStudios(seriesID, entries);
-    }
-
     private async Task<List<MetadataSuggestionData>> ReadSuggestions(int anilistAnimeID, JsonNode media, AnilistRecommendationDepth depth, CancellationToken cancellationToken)
     {
         var suggestions = new List<MetadataSuggestionData>();
@@ -233,47 +221,36 @@ public sealed class AnilistRefreshService(
                 .Where(recommendation => recommendation.ID == anilistAnimeID)
                 .Select(recommendation => (AnilistUtility.SeriesGuid(anime.ID), recommendation.Score)));
 
-    private async Task UpdatePeople(AnilistMedia media, JsonNode node, bool fetchCharacters, bool fetchStaff, CancellationToken cancellationToken)
+    private async Task UpdatePeople(AnilistMedia media, JsonNode node, CancellationToken cancellationToken)
     {
-        if (!fetchCharacters && !fetchStaff)
-            return;
-
         var seriesID = AnilistUtility.SeriesGuid(media.ID);
         var people = new AnilistPeople();
-        if (fetchCharacters)
+        var page = node["characters"];
+        while (page is not null)
         {
-            var page = node["characters"];
-            while (page is not null)
-            {
-                AnilistMediaMapper.ReadCharacterPage(page, people);
-                var (hasNextPage, nextPage) = AnilistMediaMapper.ReadPageInfo(page);
-                if (!hasNextPage)
-                    break;
+            AnilistMediaMapper.ReadCharacterPage(page, people);
+            var (hasNextPage, nextPage) = AnilistMediaMapper.ReadPageInfo(page);
+            if (!hasNextPage)
+                break;
 
-                page = await apiClient.GetCharactersPageAsync(media.ID, nextPage, cancellationToken).ConfigureAwait(false);
-            }
+            page = await apiClient.GetCharactersPageAsync(media.ID, nextPage, cancellationToken).ConfigureAwait(false);
         }
 
-        if (fetchStaff)
+        page = node["staff"];
+        while (page is not null)
         {
-            var page = node["staff"];
-            while (page is not null)
-            {
-                AnilistMediaMapper.ReadStaffPage(page, people, media.OriginalLanguageCode);
-                var (hasNextPage, nextPage) = AnilistMediaMapper.ReadPageInfo(page);
-                if (!hasNextPage)
-                    break;
+            AnilistMediaMapper.ReadStaffPage(page, people, media.OriginalLanguageCode);
+            var (hasNextPage, nextPage) = AnilistMediaMapper.ReadPageInfo(page);
+            if (!hasNextPage)
+                break;
 
-                page = await apiClient.GetStaffPageAsync(media.ID, nextPage, cancellationToken).ConfigureAwait(false);
-            }
+            page = await apiClient.GetStaffPageAsync(media.ID, nextPage, cancellationToken).ConfigureAwait(false);
         }
 
         store.People.SaveCreators(people.Creators.Values);
         store.People.SaveCharacters(people.Characters.Values);
         store.SavePortraits(people.Portraits);
-        if (fetchCharacters)
-            store.People.SetCast(seriesID, people.Cast);
-        if (fetchStaff)
-            store.People.SetCrew(seriesID, people.Crew);
+        store.People.SetCast(seriesID, people.Cast);
+        store.People.SetCrew(seriesID, people.Crew);
     }
 }
