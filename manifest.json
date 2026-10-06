@@ -9,6 +9,22 @@
   ],
   "releases": [
     {
+      "version": "1.2.0",
+      "tag": "v1.2.0",
+      "released_at": "2026-10-06T21:28:17.3929346Z",
+      "channel": "Stable",
+      "release_notes": "Cast and crew are now switched on and off with the provider\u0027s \u0060creator\u0060 and \u0060character\u0060 kinds, both off by default, while studios stay on; the old download settings are gone. Airings are stored by their episode number, capped at AniList\u0027s episode count. Auto-linking handles anime with an unknown episode count better, using the next airing and the full schedule, and searches by the year of the regular broadcast.\n\nRebuilt against the abstractions \u00606.0.0-alpha.99\u0060 release.\n\nRequires Shoko Server with abstractions \u00606.0.0-alpha.99\u0060.",
+      "dependencies": [],
+      "archives": [
+        {
+          "runtime": "any",
+          "abstraction": "6.0.0",
+          "url": "https://github.com/revam/dotnet-shoko-plugin-anilist/releases/download/v1.2.0/AniListMetadata-v1.2.0-any.zip",
+          "checksum": "sha256:fb43527ca9d151f4802bae2a9d83a0d6d83205ae262a38dd3011c8b76c6188c9"
+        }
+      ]
+    },
+    {
       "version": "1.1.0",
       "tag": "v1.1.0",
       "released_at": "2026-10-03T16:55:04.2090268Z",
