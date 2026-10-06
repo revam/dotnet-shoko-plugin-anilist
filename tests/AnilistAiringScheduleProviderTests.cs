@@ -48,7 +48,7 @@ public class AnilistAiringScheduleProviderTests
             && data.FirstEpisodeNumber == 1
             && data.LastEpisodeNumber == 2
             && data.IsFinished)), Times.Once);
-        harness.AiringScheduleService.Verify(service => service.SetAirings(provider, schedule.Object, It.Is<IEnumerable<EpisodeAiringData>>(airings => airings.Single().AiredAt == airedAt && airings.Single().Episode.EpisodeNumber == 1), null), Times.Once);
+        harness.AiringScheduleService.Verify(service => service.SetAirings(provider, schedule.Object, It.Is<IEnumerable<EpisodeAiringData>>(airings => airings.Single().AiredAt == airedAt && airings.Single().SequenceNumber == 1 && airings.Single().Episode == null), null), Times.Once);
     }
 
     [Fact]

@@ -24,9 +24,9 @@ namespace Shoko.Plugin.Anilist.Airing;
 /// <remarks>
 /// A refresh only asks the core to refresh the anime. The schedule is written
 /// by the refresh itself, through <see cref="WriteSchedule"/>, since that is
-/// where the airing schedule arrives and where the episodes it hangs off are
-/// rebuilt. Registered as a singleton so the refresh writes through the very
-/// instance the core discovered, which is what every write is checked against.
+/// where the airing schedule arrives. Registered as a singleton so the
+/// refresh writes through the very instance the core discovered, which is
+/// what every write is checked against.
 /// </remarks>
 /// <param name="airingScheduleService">The core's airing schedule service.</param>
 /// <param name="refreshService">The core's refresh service, asked to refresh the anime.</param>
@@ -149,7 +149,7 @@ public sealed class AnilistAiringScheduleProvider(
             if (schedule.Count is 0 && GetOwnSchedules(series.ID).Count is 0)
                 return;
 
-            var episodes = series.Episodes.GroupBy(episode => episode.EpisodeNumber).ToDictionary(group => group.Key, group => group.First());
+            int? lastEpisodeNumber = media.EpisodeCount > 0 ? media.EpisodeCount : null;
             var languageCode = string.IsNullOrWhiteSpace(media.OriginalLanguageCode) ? "unk" : media.OriginalLanguageCode;
             var view = airingScheduleService.AddOrUpdateSchedule(this, new()
             {
@@ -157,14 +157,16 @@ public sealed class AnilistAiringScheduleProvider(
                 Key = ScheduleKey,
                 Tracks = [new AiringTrackData(AiringKind.Original, languageCode)],
                 FirstEpisodeNumber = 1,
-                LastEpisodeNumber = media.EpisodeCount > 0 ? episodes.Count : null,
+                LastEpisodeNumber = lastEpisodeNumber,
                 IsFinished = media.Status is ReleaseStatus.Finished,
             });
 
+            // The episode number is the airing's place on the line, which the
+            // core resolves to an episode when it reads the airing.
             var airings = schedule
                 .OrderBy(entry => entry.Key)
-                .Where(entry => episodes.ContainsKey(entry.Key))
-                .Select(entry => new EpisodeAiringData { Episode = episodes[entry.Key], AiredAt = entry.Value.AiredAt })
+                .Where(entry => entry.Key >= 1 && (lastEpisodeNumber is null || entry.Key <= lastEpisodeNumber))
+                .Select(entry => new EpisodeAiringData { SequenceNumber = entry.Key, AiredAt = entry.Value.AiredAt })
                 .ToList();
             try
             {
