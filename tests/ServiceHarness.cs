@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Shoko.Abstractions.Connectivity.Suspensions;
 using Shoko.Abstractions.Core.Services;
 using Shoko.Abstractions.Metadata;
 using Shoko.Abstractions.Metadata.Airing;
@@ -33,7 +34,7 @@ internal sealed class ServiceHarness : IDisposable
     public ServiceHarness(AnilistConfiguration? configuration = null)
     {
         Stores = new TestHarness(configuration ?? new AnilistConfiguration { RateLimit = { MaxRequestsPerWindow = 90, WindowDurationMs = 1000 } });
-        RateLimiter = new AnilistRateLimiter(NullLogger<AnilistRateLimiter>.Instance, Stores.ConfigurationProvider);
+        RateLimiter = new AnilistRateLimiter(NullLogger<AnilistRateLimiter>.Instance, Stores.ConfigurationProvider, SuspensionReporter);
 
         // The core's linking service records the link and queues nothing;
         // the mock does the recording.
@@ -91,6 +92,8 @@ internal sealed class ServiceHarness : IDisposable
     public TestHarness Stores { get; }
 
     public AnilistRateLimiter RateLimiter { get; }
+
+    public FakeSuspensionReporter<AnilistSuspensionProvider> SuspensionReporter { get; } = new();
 
     public StubHttpMessageHandler Http { get; } = new();
 

@@ -33,8 +33,9 @@ namespace Shoko.Plugin.Anilist.Metadata;
 /// <para>
 ///   The core runs the refresh, search, image and purge jobs and calls in
 ///   here; the provider fetches from AniList and writes into the core's
-///   stores, and the core reads the anime back from them. While the rate
-///   limiter's breaker is tripped the provider says it is paused, and the
+///   stores, and the core reads the anime back from them. While AniList
+///   limits the rate or answers with server errors,
+///   <see cref="AnilistSuspensionProvider"/> reports a suspension, and the
 ///   core holds its jobs back.
 /// </para>
 /// <para>
@@ -42,7 +43,7 @@ namespace Shoko.Plugin.Anilist.Metadata;
 ///   time, for the ones a refresh named without writing them.
 /// </para>
 /// </remarks>
-public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IMetadataAutoLinkingProvider, IMetadataImageProvider, IMetadataEntityProvider, IPausableMetadataProvider, IMetadataProvider<AnilistConfiguration>
+public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IMetadataAutoLinkingProvider, IMetadataImageProvider, IMetadataEntityProvider, IMetadataProvider<AnilistConfiguration>
 {
     private readonly AnilistRefreshService _refreshService;
 
@@ -55,8 +56,6 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
     private readonly AnilistAiringScheduleProvider _airingScheduleProvider;
 
     private readonly AnilistStore _store;
-
-    private readonly AnilistRateLimiter _rateLimiter;
 
     private readonly IMetadataService _metadataService;
 
@@ -71,7 +70,6 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
     /// <param name="imageService">Hands out the images.</param>
     /// <param name="airingScheduleProvider">Removes the broadcast times of a purged anime.</param>
     /// <param name="store">The plugin's store, cleaned up after a purge.</param>
-    /// <param name="rateLimiter">The rate limiter, whose breaker is the provider's pause.</param>
     /// <param name="metadataService">The core's metadata service, for the AniDB anime to link.</param>
     /// <param name="logger">The logger.</param>
     public AnilistMetadataProvider(
@@ -81,7 +79,6 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
         AnilistImageService imageService,
         AnilistAiringScheduleProvider airingScheduleProvider,
         AnilistStore store,
-        AnilistRateLimiter rateLimiter,
         IMetadataService metadataService,
         ILogger<AnilistMetadataProvider> logger
     )
@@ -92,10 +89,8 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
         _imageService = imageService;
         _airingScheduleProvider = airingScheduleProvider;
         _store = store;
-        _rateLimiter = rateLimiter;
         _metadataService = metadataService;
         _logger = logger;
-        _rateLimiter.PauseStateChanged += OnPauseStateChanged;
     }
 
     #region Provider
@@ -205,30 +200,6 @@ public sealed class AnilistMetadataProvider : IMetadataSeriesLinkingProvider, IM
 
         return null;
     }
-
-    #endregion
-
-    #region Pausing
-
-    /// <summary>
-    /// Paused while the rate limiter's breaker is tripped, which it is after
-    /// AniList answered with a server error, until the pause runs out.
-    /// </summary>
-    public MetadataProviderPauseStatus PauseStatus
-        => _rateLimiter.IsPaused
-            ? new()
-            {
-                IsPaused = true,
-                Reason = _rateLimiter.PauseReason ?? "AniList is temporarily unavailable.",
-                ResumesAt = _rateLimiter.RemainingPauseTime is { } remaining ? DateTime.UtcNow + remaining : null,
-            }
-            : MetadataProviderPauseStatus.NotPaused;
-
-    /// <inheritdoc/>
-    public event EventHandler? PauseStatusChanged;
-
-    private void OnPauseStateChanged(object? sender, EventArgs eventArgs)
-        => PauseStatusChanged?.Invoke(this, EventArgs.Empty);
 
     #endregion
 

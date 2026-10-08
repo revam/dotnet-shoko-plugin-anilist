@@ -1,6 +1,7 @@
 using Moq;
 using Shoko.Abstractions.Config;
 using Shoko.Abstractions.Config.Services;
+using Shoko.Abstractions.Connectivity.Suspensions;
 using Shoko.Plugin.Anilist.Services;
 using Shoko.Plugin.Anilist.Storage;
 
@@ -59,4 +60,31 @@ internal sealed class TestHarness : IDisposable
         service.Setup(s => s.Load<AnilistConfiguration>(It.IsAny<bool>())).Returns(configuration);
         return new ConfigurationProvider<AnilistConfiguration>(service.Object);
     }
+}
+
+/// <summary>
+/// Keeps the suspensions reported to it as the core would, without their
+/// ends running out, so a test can read back what the plugin reported.
+/// </summary>
+internal sealed class FakeSuspensionReporter<TProvider> : ISuspensionReporter<TProvider>
+    where TProvider : ISuspensionProvider
+{
+    private readonly Dictionary<SuspensionKind, Suspension> _active = [];
+
+    public IReadOnlyDictionary<SuspensionKind, Suspension> Active => _active;
+
+    public SuspensionStatus Current => new()
+    {
+        Provider = null!,
+        Suspensions = [.. _active.Values],
+        IsSuspended = _active.Count > 0,
+        ResumesAt = _active.Count > 0 && _active.Values.All(suspension => suspension.ResumesAt is not null) ? _active.Values.Max(suspension => suspension.ResumesAt) : null,
+    };
+
+    public void Suspend(SuspensionKind kind, string? reason = null, DateTime? resumesAt = null, bool isLiftable = false)
+        => _active[kind] = new() { Kind = kind, Reason = reason, RaisedAt = DateTime.UtcNow, ResumesAt = resumesAt, IsLiftable = isLiftable };
+
+    public void Resume(SuspensionKind kind) => _active.Remove(kind);
+
+    public void ResumeAll() => _active.Clear();
 }

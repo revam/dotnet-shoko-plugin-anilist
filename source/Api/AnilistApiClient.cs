@@ -22,9 +22,9 @@ namespace Shoko.Plugin.Anilist.Api;
 /// </summary>
 /// <remarks>
 /// A server error is never retried here. It trips the breaker and surfaces as
-/// an <see cref="AnilistUnavailableException"/>, and the provider reports the
-/// pause, so the core holds its jobs back until it lifts instead of adding load
-/// to a struggling upstream.
+/// an <see cref="AnilistUnavailableException"/>, and the rate limiter reports
+/// a suspension, so the core holds the jobs back until it runs out instead of
+/// adding load to a struggling upstream.
 /// </remarks>
 /// <param name="httpClient">The HTTP client, with its base address set to the GraphQL endpoint.</param>
 /// <param name="rateLimiter">The rate limiter every request goes through.</param>
@@ -604,9 +604,7 @@ public class AnilistApiClient(HttpClient httpClient, AnilistRateLimiter rateLimi
         if ((int)response.StatusCode >= 500)
         {
             logger.LogWarning("AniList returned {StatusCode} {Reason}. Pausing AniList work.", (int)response.StatusCode, response.ReasonPhrase);
-            rateLimiter.Notify5xxError();
-            if (retryAfter is { } serverRetryAfter)
-                rateLimiter.NotifyRateLimitExceeded(serverRetryAfter);
+            rateLimiter.Notify5xxError(retryAfter);
             throw new AnilistUnavailableException($"AniList returned {(int)response.StatusCode} {response.ReasonPhrase}.", rateLimiter.RemainingPauseTime, response.StatusCode);
         }
 

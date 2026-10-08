@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
+using Shoko.Abstractions.Connectivity.Suspensions;
 using Shoko.Plugin.Anilist.Api;
 using Xunit;
 
@@ -71,34 +72,53 @@ public class AnilistRateLimiterTests
     }
 
     [Fact]
-    public void FirstServerError_TripsBreaker_AndPauseStateChangedFires()
+    public void FirstServerError_TripsBreaker_AndIsReported()
     {
-        using var limiter = CreateRateLimiter();
-        var fired = 0;
-        limiter.PauseStateChanged += (_, _) => fired++;
+        var reporter = new FakeSuspensionReporter<AnilistSuspensionProvider>();
+        using var limiter = CreateRateLimiter(reporter: reporter);
 
         limiter.Notify5xxError();
 
         Assert.True(limiter.IsPaused);
-        Assert.Equal(1, fired);
         Assert.True(limiter.GetPauseSnapshot().IsPaused);
         Assert.True(limiter.BackoffUntilTicks > DateTimeOffset.UtcNow.UtcTicks);
+        Assert.Equal(new DateTime(limiter.BackoffUntilTicks, DateTimeKind.Utc), reporter.Active[SuspensionKind.ServerErrors].ResumesAt);
     }
 
     [Fact]
-    public void ServerErrorsWhilePaused_DoNotEscalate()
+    public void ServerErrorsWhilePaused_DoNotEscalate_ButALongerRetryAfterLengthensThePause()
     {
-        using var limiter = CreateRateLimiter();
-        var fired = 0;
-        limiter.PauseStateChanged += (_, _) => fired++;
+        var reporter = new FakeSuspensionReporter<AnilistSuspensionProvider>();
+        using var limiter = CreateRateLimiter(reporter: reporter);
 
         limiter.Notify5xxError();
         var firstDeadline = limiter.BackoffUntilTicks;
         limiter.Notify5xxError();
-        limiter.Notify5xxError();
+        limiter.Notify5xxError(TimeSpan.FromSeconds(1));
 
         Assert.Equal(firstDeadline, limiter.BackoffUntilTicks);
-        Assert.Equal(1, fired);
+
+        limiter.Notify5xxError(TimeSpan.FromMinutes(10));
+
+        Assert.True(limiter.BackoffUntilTicks > firstDeadline);
+        Assert.Equal(new DateTime(limiter.BackoffUntilTicks, DateTimeKind.Utc), reporter.Active[SuspensionKind.ServerErrors].ResumesAt);
+    }
+
+    [Fact]
+    public void ARateLimit_IsReported_AndAShorterOneNeverCutsItShort()
+    {
+        var reporter = new FakeSuspensionReporter<AnilistSuspensionProvider>();
+        using var limiter = CreateRateLimiter(reporter: reporter);
+
+        limiter.NotifyRateLimitExceeded(TimeSpan.FromMinutes(5));
+        var deadline = reporter.Active[SuspensionKind.RateLimited].ResumesAt;
+        limiter.NotifyRateLimitExceeded(TimeSpan.FromSeconds(5));
+        limiter.NotifyQuota(null, 0, DateTimeOffset.UtcNow.AddSeconds(5));
+
+        Assert.False(limiter.IsPaused);
+        Assert.Equal(deadline, reporter.Active[SuspensionKind.RateLimited].ResumesAt);
+        Assert.Equal(new DateTime(limiter.BackoffUntilTicks, DateTimeKind.Utc), deadline);
+        Assert.DoesNotContain(SuspensionKind.ServerErrors, reporter.Active.Keys);
     }
 
     [Fact]
@@ -156,11 +176,16 @@ public class AnilistRateLimiterTests
     public void GetPauseDuration_Escalates_AndCaps(int level, int expectedMinutes)
         => Assert.Equal(TimeSpan.FromMinutes(expectedMinutes), AnilistRateLimiter.GetPauseDuration(level));
 
-    internal static AnilistRateLimiter CreateRateLimiter(int maxRequests = 3, int windowMs = 1000, int errorWindowMs = 10_000)
+    internal static AnilistRateLimiter CreateRateLimiter(
+        int maxRequests = 3,
+        int windowMs = 1000,
+        int errorWindowMs = 10_000,
+        FakeSuspensionReporter<AnilistSuspensionProvider>? reporter = null
+    )
     {
         var configuration = new AnilistConfiguration();
         configuration.RateLimit.MaxRequestsPerWindow = maxRequests;
         configuration.RateLimit.WindowDurationMs = windowMs;
-        return new AnilistRateLimiter(NullLogger<AnilistRateLimiter>.Instance, TestHarness.CreateConfigurationProvider(configuration), TimeSpan.FromMilliseconds(errorWindowMs));
+        return new AnilistRateLimiter(NullLogger<AnilistRateLimiter>.Instance, TestHarness.CreateConfigurationProvider(configuration), TimeSpan.FromMilliseconds(errorWindowMs), reporter);
     }
 }

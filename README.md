@@ -110,9 +110,11 @@ it as `MetadataSource.AniList`, a C# 14 extension member.
 The plugin runs no queue of its own. The core runs the refresh, search, image
 and purge jobs for every provider, decides when an anime is due, holds its lock
 while it is refreshed, and retries a failed refresh. The plugin keeps its rate
-limiter: every request to AniList goes through it, and while its breaker is
-tripped after a server error the provider reports itself paused, with the
-reason and when it expects to resume, so the core holds its jobs back.
+limiter: every request to AniList goes through it, and while it backs off
+the plugin's `AnilistSuspensionProvider` (named "AniList") reports a
+`RateLimited` suspension (a 429 or a spent quota) or a `ServerErrors` one (its
+breaker tripped after a server error), with when it expects to resume, so the
+core holds the provider's jobs back.
 
 A failure that passes (a server error, a timeout, an exhausted rate-limit
 budget, or AniList out of reach) is thrown as `AnilistUnavailableException`, a

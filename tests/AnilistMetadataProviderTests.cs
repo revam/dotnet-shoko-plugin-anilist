@@ -1,5 +1,6 @@
 using System.Net;
 using Moq;
+using Shoko.Abstractions.Connectivity.Suspensions;
 using Shoko.Abstractions.Metadata;
 using Shoko.Abstractions.Metadata.Airing;
 using Shoko.Abstractions.Metadata.Enums;
@@ -129,22 +130,16 @@ public class AnilistMetadataProviderTests
     }
 
     [Fact]
-    public async Task PauseStatus_FollowsTheBreaker_WithAReason()
+    public async Task AServerError_IsReportedAsASuspension()
     {
         using var harness = new ServiceHarness().Respond("oops", HttpStatusCode.BadGateway);
         var provider = harness.Get<AnilistMetadataProvider>();
-        var changes = 0;
-        provider.PauseStatusChanged += (_, _) => changes++;
-        Assert.False(provider.PauseStatus.IsPaused);
 
         await Assert.ThrowsAnyAsync<Exception>(() => provider.RefreshSeries(_series, new(), TestContext.Current.CancellationToken));
 
-        var status = provider.PauseStatus;
-        Assert.True(status.IsPaused);
-        Assert.Contains("server error", status.Reason, StringComparison.Ordinal);
-        Assert.NotNull(status.ResumesAt);
-        Assert.InRange(status.GetRemainingPauseTime()!.Value, TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(1));
-        Assert.Equal(1, changes);
+        var suspension = Assert.Single(harness.SuspensionReporter.Current.Suspensions);
+        Assert.Equal(SuspensionKind.ServerErrors, suspension.Kind);
+        Assert.InRange(suspension.GetRemainingTime()!.Value, TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(1));
     }
 
     [Fact]

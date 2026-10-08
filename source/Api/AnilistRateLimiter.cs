@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Shoko.Abstractions.Config;
 using Shoko.Abstractions.Config.Events;
+using Shoko.Abstractions.Connectivity.Suspensions;
 
 namespace Shoko.Plugin.Anilist.Api;
 
@@ -14,9 +15,16 @@ namespace Shoko.Plugin.Anilist.Api;
 /// circuit breaker pauses everything on the first server error.
 /// </summary>
 /// <remarks>
-/// The breaker trips on the very first 5XX because AniList has been fragile,
-/// and a client that keeps knocking during an outage makes it worse. Queued
-/// work waits for the pause to lift and then resumes, so nothing is lost.
+/// <para>
+///   The breaker trips on the very first 5XX because AniList has been fragile,
+///   and a client that keeps knocking during an outage makes it worse. Queued
+///   work waits for the pause to lift and then resumes, so nothing is lost.
+/// </para>
+/// <para>
+///   Each wait is reported as a <see cref="SuspensionKind.RateLimited"/> or
+///   <see cref="SuspensionKind.ServerErrors"/> suspension with its end, so the
+///   core holds the plugin's jobs back until it runs out.
+/// </para>
 /// </remarks>
 public sealed class AnilistRateLimiter : IDisposable
 {
@@ -50,13 +58,17 @@ public sealed class AnilistRateLimiter : IDisposable
 
     private volatile int _pauseLevel;
 
-    private volatile bool _isPaused;
-
-    private volatile string? _pauseReason;
-
     private volatile int _remainingRequests = -1;
 
+    private readonly ISuspensionReporter<AnilistSuspensionProvider>? _reporter;
+
+    // Every wait, whatever its kind; requests wait for it to pass.
     private long _backoffUntilTicks;
+
+    // The breaker's own deadline, and the latest wait reported for each kind.
+    private long _serverErrorsUntilTicks;
+
+    private long _rateLimitedUntilTicks;
 
     private long _lastErrorTicks;
 
@@ -65,8 +77,13 @@ public sealed class AnilistRateLimiter : IDisposable
     /// </summary>
     /// <param name="logger">The logger.</param>
     /// <param name="configurationProvider">The plugin's configuration, read for the local window.</param>
-    public AnilistRateLimiter(ILogger<AnilistRateLimiter> logger, ConfigurationProvider<AnilistConfiguration> configurationProvider)
-        : this(logger, configurationProvider, TimeSpan.FromMinutes(5)) { }
+    /// <param name="reporter">Where the waits are reported as suspensions; nowhere when left out.</param>
+    public AnilistRateLimiter(
+        ILogger<AnilistRateLimiter> logger,
+        ConfigurationProvider<AnilistConfiguration> configurationProvider,
+        ISuspensionReporter<AnilistSuspensionProvider>? reporter = null
+    )
+        : this(logger, configurationProvider, TimeSpan.FromMinutes(5), reporter) { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AnilistRateLimiter"/> class
@@ -75,9 +92,16 @@ public sealed class AnilistRateLimiter : IDisposable
     /// <param name="logger">The logger.</param>
     /// <param name="configurationProvider">The plugin's configuration, read for the local window.</param>
     /// <param name="errorWindow">How soon after a pause another error escalates the next pause.</param>
-    internal AnilistRateLimiter(ILogger<AnilistRateLimiter> logger, ConfigurationProvider<AnilistConfiguration> configurationProvider, TimeSpan errorWindow)
+    /// <param name="reporter">Where the waits are reported as suspensions; nowhere when left out.</param>
+    internal AnilistRateLimiter(
+        ILogger<AnilistRateLimiter> logger,
+        ConfigurationProvider<AnilistConfiguration> configurationProvider,
+        TimeSpan errorWindow,
+        ISuspensionReporter<AnilistSuspensionProvider>? reporter = null
+    )
     {
         _logger = logger;
+        _reporter = reporter;
         _configurationProvider = configurationProvider;
         _errorWindowTicks = errorWindow.Ticks;
         var settings = configurationProvider.Load().RateLimit;
@@ -87,11 +111,6 @@ public sealed class AnilistRateLimiter : IDisposable
         _limiter = CreateLimiter(settings.MaxRequestsPerWindow, settings.WindowDurationMs);
         _configurationProvider.Saved += OnConfigurationSaved;
     }
-
-    /// <summary>
-    /// Raised when <see cref="IsPaused"/> flips either way.
-    /// </summary>
-    public event EventHandler? PauseStateChanged;
 
     #region State
 
@@ -109,16 +128,10 @@ public sealed class AnilistRateLimiter : IDisposable
     public int? RemainingRequests => _remainingRequests < 0 ? null : _remainingRequests;
 
     /// <summary>
-    /// Whether the circuit breaker is tripped, which the provider reports as
-    /// its pause, so the core holds back every job of it.
+    /// Whether the circuit breaker is tripped, until the pause it set runs
+    /// out.
     /// </summary>
-    public bool IsPaused => _isPaused;
-
-    /// <summary>
-    /// Why the breaker is tripped, in words a person can read, or
-    /// <see langword="null"/> while it is not.
-    /// </summary>
-    public string? PauseReason => _isPaused ? _pauseReason : null;
+    public bool IsPaused => Interlocked.Read(ref _serverErrorsUntilTicks) > DateTimeOffset.UtcNow.UtcTicks;
 
     /// <summary>
     /// Time left on the current backoff, or <see langword="null"/> when there is none.
@@ -152,7 +165,7 @@ public sealed class AnilistRateLimiter : IDisposable
             var ticks = _backoffUntilTicks;
             var remaining = ticks == 0 ? (TimeSpan?)null : new DateTimeOffset(ticks, TimeSpan.Zero) - DateTimeOffset.UtcNow;
             remaining = remaining > TimeSpan.Zero ? remaining : null;
-            return (_isPaused || remaining is not null, remaining, RemainingRequests);
+            return (remaining is not null, remaining, RemainingRequests);
         }
     }
 
@@ -198,16 +211,9 @@ public sealed class AnilistRateLimiter : IDisposable
     /// <exception cref="OperationCanceledException">The wait was cancelled.</exception>
     public async Task WaitWhilePausedAsync(CancellationToken cancellationToken = default)
     {
-        while (_isPaused || RemainingPauseTime is not null)
-        {
-            var wait = RemainingPauseTime ?? TimeSpan.FromSeconds(1);
+        // The breaker's pause is part of the backoff, so waiting that out is enough.
+        while (RemainingPauseTime is { } wait)
             await Task.Delay(wait + Jitter(), cancellationToken).ConfigureAwait(false);
-
-            // A breaker whose deadline passed without a success to reset it
-            // would otherwise hold everything back for good.
-            if (_isPaused && RemainingPauseTime is null)
-                ExpirePause();
-        }
     }
 
     /// <summary>
@@ -249,6 +255,14 @@ public sealed class AnilistRateLimiter : IDisposable
         => SetBackoff(DateTimeOffset.UtcNow + (retryAfter ?? TimeSpan.FromSeconds(60)), "AniList rate limit exceeded");
 
     /// <summary>
+    /// Whether the circuit breaker is tripped, as of a moment.
+    /// </summary>
+    /// <param name="nowTicks">The moment, in UTC ticks.</param>
+    /// <returns>Whether the breaker's pause runs past it.</returns>
+    private bool IsTrippedAt(long nowTicks)
+        => Interlocked.Read(ref _serverErrorsUntilTicks) > nowTicks;
+
+    /// <summary>
     /// Records the quota headers of a response, backing off until the reset
     /// once the quota is spent, and lowering the local window when AniList
     /// advertises less than is configured.
@@ -279,38 +293,45 @@ public sealed class AnilistRateLimiter : IDisposable
     /// is tripped are absorbed, and one soon after a pause lifted makes the
     /// next pause longer.
     /// </summary>
-    public void Notify5xxError()
+    /// <param name="retryAfter">How long AniList asked to wait, which lengthens a shorter pause.</param>
+    public void Notify5xxError(TimeSpan? retryAfter = null)
     {
         var now = DateTimeOffset.UtcNow.UtcTicks;
         TimeSpan duration;
+        DateTimeOffset until;
         lock (_breakerLock)
         {
-            // Requests already in flight when the breaker tripped fail too; they do not escalate.
-            if (_isPaused)
-                return;
+            // Requests already in flight when the breaker tripped fail too; they do not
+            // escalate, but a longer wait AniList asked for still lengthens the pause.
+            if (IsTrippedAt(now))
+            {
+                if (retryAfter is not { } longer || now + longer.Ticks <= Interlocked.Read(ref _serverErrorsUntilTicks))
+                    return;
 
-            // A fresh error long after the last one starts the ramp over; a quick repeat escalates it.
-            if (_lastErrorTicks != 0 && now - _lastErrorTicks >= _errorWindowTicks)
-                _pauseLevel = 0;
-            _lastErrorTicks = now;
+                duration = longer;
+            }
+            else
+            {
+                // A fresh error long after the last one starts the ramp over; a quick repeat escalates it.
+                if (_lastErrorTicks != 0 && now - _lastErrorTicks >= _errorWindowTicks)
+                    _pauseLevel = 0;
+                _lastErrorTicks = now;
 
-            var nextLevel = Math.Min(_pauseLevel + 1, 5);
-            duration = GetPauseDuration(nextLevel);
-            var newTicks = (DateTimeOffset.UtcNow + duration).UtcTicks;
+                _pauseLevel = Math.Min(_pauseLevel + 1, 5);
+                duration = GetPauseDuration(_pauseLevel);
+                if (retryAfter is { } asked && asked > duration)
+                    duration = asked;
+            }
 
-            _pauseLevel = nextLevel;
+            until = new DateTimeOffset(now, TimeSpan.Zero) + duration;
+            var newTicks = until.UtcTicks;
+            Interlocked.Exchange(ref _serverErrorsUntilTicks, newTicks);
             if (newTicks > Interlocked.Read(ref _backoffUntilTicks))
                 Interlocked.Exchange(ref _backoffUntilTicks, newTicks);
-
-            _pauseReason = nextLevel > 1
-                ? $"AniList answered with server errors again soon after the last pause, so its work is paused for {(int)duration.TotalMinutes} minutes."
-                : $"AniList answered with a server error, so its work is paused for {(int)duration.TotalMinutes} minute(s).";
-            _isPaused = true;
         }
 
-        _logger.LogInformation("AniList is temporarily unavailable. All AniList work paused for {Duration} minutes. It will resume automatically.", (int)duration.TotalMinutes);
-        PauseStateChanged?.Invoke(this, EventArgs.Empty);
-        SchedulePauseExpiry(duration);
+        _logger.LogInformation("AniList is temporarily unavailable. All AniList work paused for {Duration} minutes. It will resume automatically.", (int)Math.Ceiling(duration.TotalMinutes));
+        Report(SuspensionKind.ServerErrors, until);
     }
 
     /// <summary>
@@ -322,7 +343,6 @@ public sealed class AnilistRateLimiter : IDisposable
         if (_pauseLevel == 0)
             return;
 
-        var resumed = false;
         lock (_breakerLock)
         {
             if (_pauseLevel == 0)
@@ -333,20 +353,12 @@ public sealed class AnilistRateLimiter : IDisposable
                 return;
 
             Interlocked.Exchange(ref _backoffUntilTicks, 0);
+            Interlocked.Exchange(ref _serverErrorsUntilTicks, 0);
             _pauseLevel = 0;
             _lastErrorTicks = 0;
-            if (_isPaused)
-            {
-                _isPaused = false;
-                resumed = true;
-            }
         }
 
-        if (!resumed)
-            return;
-
-        _logger.LogInformation("AniList is available again. Queued AniList work will now resume.");
-        PauseStateChanged?.Invoke(this, EventArgs.Empty);
+        _logger.LogInformation("AniList is available again.");
     }
 
     /// <summary>
@@ -368,41 +380,32 @@ public sealed class AnilistRateLimiter : IDisposable
         var newTicks = until.UtcTicks;
         lock (_breakerLock)
         {
-            if (newTicks <= Interlocked.Read(ref _backoffUntilTicks))
+            if (newTicks <= Interlocked.Read(ref _rateLimitedUntilTicks))
                 return;
 
-            Interlocked.Exchange(ref _backoffUntilTicks, newTicks);
+            Interlocked.Exchange(ref _rateLimitedUntilTicks, newTicks);
+            if (newTicks > Interlocked.Read(ref _backoffUntilTicks))
+                Interlocked.Exchange(ref _backoffUntilTicks, newTicks);
         }
 
         _logger.LogTrace("{Reason}. Backing off until {Until}", reason, until);
+        Report(SuspensionKind.RateLimited, until);
     }
 
-    private void SchedulePauseExpiry(TimeSpan duration)
-        => _ = Task.Delay(duration, _disposeCts.Token)
-            .ContinueWith(_ => ExpirePause(), CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
-
-    private void ExpirePause()
+    // The core clears the suspension once its end passes, so nothing resumes it here.
+    private void Report(SuspensionKind kind, DateTimeOffset until)
     {
-        lock (_breakerLock)
+        if (_reporter is null)
+            return;
+
+        try
         {
-            if (!_isPaused)
-                return;
-
-            // A 429 during the pause pushed the deadline further out. Nothing
-            // polls the breaker, so the expiry has to be rearmed for it.
-            var backoffTicks = Interlocked.Read(ref _backoffUntilTicks);
-            if (backoffTicks > DateTimeOffset.UtcNow.UtcTicks)
-            {
-                SchedulePauseExpiry(new DateTimeOffset(backoffTicks, TimeSpan.Zero) - DateTimeOffset.UtcNow);
-                return;
-            }
-
-            Interlocked.Exchange(ref _backoffUntilTicks, 0);
-            _isPaused = false;
+            _reporter.Suspend(kind, resumesAt: until.UtcDateTime);
         }
-
-        _logger.LogInformation("AniList pause expired. Queued AniList work will now resume.");
-        PauseStateChanged?.Invoke(this, EventArgs.Empty);
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Could not report the AniList {Kind} suspension.", kind);
+        }
     }
 
     #endregion
