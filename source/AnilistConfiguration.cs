@@ -20,7 +20,7 @@ namespace Shoko.Plugin.Anilist;
 /// <c>character</c> and <c>studio</c> kinds.
 /// </remarks>
 [Display(Name = "AniList")]
-public class AnilistConfiguration : IConfiguration
+public class AnilistConfiguration : IMetadataProviderConfiguration
 {
     #region Linking
 
