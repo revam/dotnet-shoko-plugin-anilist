@@ -9,6 +9,22 @@
   ],
   "releases": [
     {
+      "version": "1.2.1",
+      "tag": "v1.2.1",
+      "released_at": "2026-10-08T02:22:15.9718495Z",
+      "channel": "Stable",
+      "release_notes": "The plugin\u0027s configuration is now marked as a metadata provider configuration, so it registers with the provider rather than as a standalone configuration. Rebuilt against the abstractions \u00606.0.0-alpha.100\u0060 release, where the interfaces that tie a configuration to its provider moved into \u0060Shoko.Abstractions.Config\u0060.\n\nRequires Shoko Server with abstractions \u00606.0.0-alpha.100\u0060.",
+      "dependencies": [],
+      "archives": [
+        {
+          "runtime": "any",
+          "abstraction": "6.0.0",
+          "url": "https://github.com/revam/dotnet-shoko-plugin-anilist/releases/download/v1.2.1/AniListMetadata-v1.2.1-any.zip",
+          "checksum": "sha256:e206f2d4e820015b5dc51f1714087903d8aa3494f8896c4d32e22ae918266cfe"
+        }
+      ]
+    },
+    {
       "version": "1.2.0",
       "tag": "v1.2.0",
       "released_at": "2026-10-06T21:28:17.3929346Z",
