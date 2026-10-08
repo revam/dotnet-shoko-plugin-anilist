@@ -9,6 +9,22 @@
   ],
   "releases": [
     {
+      "version": "1.3.0",
+      "tag": "v1.3.0",
+      "released_at": "2026-10-08T23:04:05.8669542Z",
+      "channel": "Stable",
+      "release_notes": "Rate limits, spent quotas and the server-error breaker are reported as suspensions, so the server and the Web UI can show why AniList\u0027s jobs are waiting. The back-off itself is unchanged. A server error that carries \u0060Retry-After\u0060 now lengthens the server-error wait instead of also reporting a rate limit.\n\nBuilt against the abstractions \u00606.0.0-alpha.101\u0060 release.\n\nRequires Shoko Server with abstractions \u00606.0.0-alpha.101\u0060.",
+      "dependencies": [],
+      "archives": [
+        {
+          "runtime": "any",
+          "abstraction": "6.0.0",
+          "url": "https://github.com/revam/dotnet-shoko-plugin-anilist/releases/download/v1.3.0/AniListMetadata-v1.3.0-any.zip",
+          "checksum": "sha256:b17f09cc57ab4b5a753b9f6c82992464b2018d29113f3614eca4cdc657861f32"
+        }
+      ]
+    },
+    {
       "version": "1.2.1",
       "tag": "v1.2.1",
       "released_at": "2026-10-08T02:22:15.9718495Z",
